@@ -1,0 +1,39 @@
+# Share of Search — brand set configuration.
+#
+# Copy this file to config/brands.yaml and edit it. config/brands.yaml is
+# gitignored, so your real competitor set never ends up in version control.
+#
+#   cp config/brands.example.yaml config/brands.yaml
+#
+# Or skip the file entirely and run ad-hoc:
+#
+#   sos run --brand Acme --competitors "Globex,Initech"
+
+market:
+  name: US
+  location_code: 2840        # DataForSEO location code. 2840 = United States.
+  language_code: en
+
+# Trailing rolling-average windows, in months. The dashboard defaults to 3.
+# 3 smooths out monthly noise; 12 shows the underlying trend.
+smoothing_windows: [3, 12]
+
+# Exactly one own_brand. This is the brand whose share you're tracking.
+own_brand:
+  name: Acme
+  url: https://www.acme.com
+  keywords:
+    - acme
+    - acme app
+  ambiguous: false
+
+# Everyone else in the category. An incomplete set makes every percentage
+# wrong, so be generous — it costs nothing extra to add another brand.
+competitors:
+  - name: Globex
+    keywords: [globex]
+    ambiguous: false
+
+  - name: Emma
+    keywords: [emma mattress]   # disambiguated on purpose — "emma" alone is a name
+    ambiguous: true             # generic word: flagged in the dashboard
