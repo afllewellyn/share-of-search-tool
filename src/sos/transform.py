@@ -29,6 +29,14 @@ logger = logging.getLogger(__name__)
 #: evidence that Google grouped them. One shared month is coincidence.
 MIN_GROUPING_OVERLAP = 2
 
+#: Minimum months a *response* must span before it is allowed to make a new
+#: grouping decision at all. Google's volumes are heavily bucketed, so over a
+#: short window two genuinely distinct low-volume keywords can easily land on
+#: the same two or three values by chance. Deciding from that would drop a real
+#: keyword and put a false cliff in the brand's history. Below this, a previous
+#: decision is carried forward instead. See :func:`resolve_grouping`.
+MIN_MONTHS_TO_DECIDE_GROUPING = 6
+
 #: Above this own-brand share, the competitor set is probably incomplete.
 INCOMPLETE_SET_THRESHOLD_PCT = 65.0
 
@@ -183,6 +191,62 @@ def dropped_keywords(groups: Dict[str, List[Dict[str, object]]]) -> Set[str]:
         for cluster in clusters:
             dropped.update(cluster["dropped"])  # type: ignore[arg-type]
     return dropped
+
+
+def resolve_grouping(
+    frame: pd.DataFrame,
+    config: Config,
+    previously_counted: Optional[Dict[str, List[str]]] = None,
+) -> "tuple[Set[str], List[str]]":
+    """Decide which keywords to exclude, using the best evidence available.
+
+    A routine refresh fetches a short window. Deciding grouping from three
+    bucketed months would let two distinct low-volume keywords coincide by
+    chance, drop one, and leave a discontinuity in the brand's history that
+    looks like a real collapse in demand.
+
+    So a new decision is only made when the response spans at least
+    :data:`MIN_MONTHS_TO_DECIDE_GROUPING` months. Below that, the decision a
+    previous run already made — recoverable from the store's ``keywords``
+    column, which records what was actually counted — is carried forward.
+
+    Args:
+        previously_counted: ``{brand: [keyword, ...]}`` from the store, or None
+            when nothing is stored yet.
+
+    Returns:
+        ``(keywords_to_exclude, warnings)``.
+    """
+    months = int(frame["date"].nunique()) if not frame.empty else 0
+    warnings: List[str] = []
+
+    if months >= MIN_MONTHS_TO_DECIDE_GROUPING:
+        groups = detect_grouped_keywords(frame, config)
+        return dropped_keywords(groups), grouped_keyword_warnings(groups)
+
+    if not previously_counted:
+        if months:
+            warnings.append(
+                f"This response covers only {months} month(s) — too short to tell a grouped "
+                "keyword pair from a coincidence, and there is no earlier run to fall back on. "
+                "No keywords were merged. Run `sos run --backfill` to evaluate grouping "
+                "against full history."
+            )
+        return set(), warnings
+
+    counted: Set[str] = set()
+    for keywords in previously_counted.values():
+        counted.update(keywords)
+
+    excluded = {k for k in config.all_keywords if k not in counted}
+    if excluded:
+        warnings.append(
+            f"Short window ({months} month(s)): reusing the keyword grouping an earlier run "
+            f"decided, so {', '.join(sorted(repr(k) for k in excluded))} "
+            f"{'is' if len(excluded) == 1 else 'are'} not counted. If you have changed this "
+            "brand's keywords, run `sos run --backfill` to re-evaluate."
+        )
+    return excluded, warnings
 
 
 # --------------------------------------------------------------------------
@@ -348,11 +412,16 @@ def add_rolling_averages(
 def build_brand_frame(
     rows: Iterable[dict],
     config: Config,
+    previously_counted: Optional[Dict[str, List[str]]] = None,
 ) -> "tuple[pd.DataFrame, List[str]]":
     """Run the full keyword-to-share pipeline.
 
     Returns the brand-month frame (without rolling averages, which are added
     at store level across the whole series) plus any warnings worth printing.
+
+    ``previously_counted`` is the ``{brand: [keyword, ...]}`` mapping the store
+    already holds, used to carry a grouping decision forward when this response
+    is too short to make a trustworthy new one.
     """
     warnings: List[str] = []
 
@@ -362,10 +431,10 @@ def build_brand_frame(
             "The data source returned no volume data at all."
         ]
 
-    groups = detect_grouped_keywords(frame, config)
-    warnings.extend(grouped_keyword_warnings(groups))
+    excluded, grouping_warnings = resolve_grouping(frame, config, previously_counted)
+    warnings.extend(grouping_warnings)
 
-    brand_frame = aggregate_to_brands(frame, config, exclude_keywords=dropped_keywords(groups))
+    brand_frame = aggregate_to_brands(frame, config, exclude_keywords=excluded)
 
     gaps = missing_brand_months(brand_frame)
     if not gaps.empty:

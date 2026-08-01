@@ -24,7 +24,7 @@
         "language_code": "en",
         "search_partners": false,
         "date_from": "2025-01-01",
-        "date_to": "2025-04-01"
+        "date_to": "2025-08-01"
       },
       "result": [
         {
@@ -35,11 +35,15 @@
           "search_partners": false,
           "competition": "LOW",
           "competition_index": 12,
-          "search_volume": 1150,
+          "search_volume": 1200,
           "low_top_of_page_bid": 0.4,
           "high_top_of_page_bid": 1.8,
           "cpc": 0.9,
           "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": 1300 },
+            { "year": 2025, "month": 7, "search_volume": 1000 },
+            { "year": 2025, "month": 6, "search_volume": 1200 },
+            { "year": 2025, "month": 5, "search_volume": 1400 },
             { "year": 2025, "month": 4, "search_volume": 1300 },
             { "year": 2025, "month": 3, "search_volume": 1200 },
             { "year": 2025, "month": 2, "search_volume": 1100 },
@@ -54,11 +58,15 @@
           "search_partners": false,
           "competition": "LOW",
           "competition_index": 12,
-          "search_volume": 1150,
+          "search_volume": 1200,
           "low_top_of_page_bid": 0.4,
           "high_top_of_page_bid": 1.8,
           "cpc": 0.9,
           "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": 1300 },
+            { "year": 2025, "month": 7, "search_volume": 1000 },
+            { "year": 2025, "month": 6, "search_volume": 1200 },
+            { "year": 2025, "month": 5, "search_volume": 1400 },
             { "year": 2025, "month": 4, "search_volume": 1300 },
             { "year": 2025, "month": 3, "search_volume": 1200 },
             { "year": 2025, "month": 2, "search_volume": 1100 },
@@ -73,12 +81,16 @@
           "search_partners": false,
           "competition": "MEDIUM",
           "competition_index": 44,
-          "search_volume": 650,
+          "search_volume": 550,
           "low_top_of_page_bid": 0.6,
           "high_top_of_page_bid": 2.4,
           "cpc": 1.2,
           "monthly_searches": [
-            { "year": 2025, "month": 4, "search_volume": 800 },
+            { "year": 2025, "month": 8, "search_volume": 800 },
+            { "year": 2025, "month": 7, "search_volume": 600 },
+            { "year": 2025, "month": 6, "search_volume": 500 },
+            { "year": 2025, "month": 5, "search_volume": 300 },
+            { "year": 2025, "month": 4, "search_volume": 400 },
             { "year": 2025, "month": 3, "search_volume": 700 },
             { "year": 2025, "month": 2, "search_volume": 600 },
             { "year": 2025, "month": 1, "search_volume": 500 }
@@ -97,7 +109,11 @@
           "high_top_of_page_bid": 1.1,
           "cpc": 0.5,
           "monthly_searches": [
-            { "year": 2025, "month": 4, "search_volume": null },
+            { "year": 2025, "month": 8, "search_volume": null },
+            { "year": 2025, "month": 7, "search_volume": 400 },
+            { "year": 2025, "month": 6, "search_volume": 300 },
+            { "year": 2025, "month": 5, "search_volume": 300 },
+            { "year": 2025, "month": 4, "search_volume": 300 },
             { "year": 2025, "month": 3, "search_volume": 100 },
             { "year": 2025, "month": 2, "search_volume": 300 },
             { "year": 2025, "month": 1, "search_volume": 500 }

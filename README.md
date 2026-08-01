@@ -59,8 +59,12 @@ sos dashboard --open
 ```
 
 Re-run `sos run` whenever you want fresh data. It pulls any new months and re-pulls the
-trailing three, because Google revises recent history. Runs are idempotent — the same
-command twice leaves the store byte-identical.
+trailing twelve, because Google revises recent history — and because cost is per request,
+so a wider window is free. Runs are idempotent: the same command twice leaves the store
+byte-identical.
+
+Change your competitor set and the next run reconciles the store to match — brands you
+removed are dropped rather than left behind inflating the category total.
 
 ## Commands
 
@@ -216,6 +220,14 @@ month where both have data (at least two such months, and not all zeros) are cou
 with a warning naming what was dropped. Verified against live data — `openai` and `open ai`
 came back identical in 47 of 47 months and were collapsed; `anthropic` and `anthropic ai`
 matched in 0 of 47 and were kept separate.
+
+The decision needs real evidence to be safe. Google's volumes are heavily bucketed, so over
+a two- or three-month window two genuinely distinct low-volume keywords can land on the same
+values by chance — merging them on that basis would drop a real keyword and leave a false
+cliff in the brand's history. So a *new* grouping decision is only made from a response
+spanning at least six months. Below that, the decision an earlier run already made is
+carried forward, recovered from the store's `keywords` column. The default refresh window is
+twelve months precisely so a routine run always clears that bar.
 
 ### On history depth
 

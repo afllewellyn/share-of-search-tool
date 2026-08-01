@@ -10,11 +10,13 @@ from sos.store import (
     STORE_FILENAME,
     build_rows,
     config_from_store,
+    counted_keywords,
     existing_months,
     is_empty,
     load_store,
     order_columns,
     recompute,
+    stale_brands,
     store_path,
     upsert,
     write_store,
@@ -116,7 +118,7 @@ def test_partial_refresh_leaves_older_months_alone(tmp_path, rows, sample_config
     combined = upsert(tmp_path, trailing, sample_config.smoothing_windows)
 
     assert sorted(pd.to_datetime(combined["date"]).dt.strftime("%Y-%m").unique()) == [
-        "2025-01", "2025-02", "2025-03", "2025-04",
+        f"2025-0{m}" for m in range(1, 9)
     ]
     assert len(combined) == len(rows)
 
@@ -216,7 +218,7 @@ def test_dates_are_written_as_iso_month_starts(tmp_path, rows, sample_config):
     upsert(tmp_path, rows, sample_config.smoothing_windows)
     raw = pd.read_csv(store_path(tmp_path))
 
-    assert set(raw["date"]) == {"2025-01-01", "2025-02-01", "2025-03-01", "2025-04-01"}
+    assert set(raw["date"]) == {f"2025-0{m}-01" for m in range(1, 9)}
 
 
 # --------------------------------------------------------------------------
@@ -231,9 +233,116 @@ def test_existing_months_is_scoped_to_one_market(tmp_path, rows, sample_config):
 
     upsert(tmp_path, pd.concat([rows, uk], ignore_index=True), sample_config.smoothing_windows)
 
-    assert len(existing_months(tmp_path, "US")) == 4
+    assert len(existing_months(tmp_path, "US")) == 8
     assert len(existing_months(tmp_path, "UK")) == 1
     assert existing_months(tmp_path, "DE") == []
+
+
+# --------------------------------------------------------------------------
+# Changing the category set
+# --------------------------------------------------------------------------
+
+
+def _swap_competitor(rows_frame, old: str, new: str):
+    """The rows a run would produce after renaming a competitor in the config."""
+    swapped = rows_frame.copy()
+    swapped["brand"] = swapped["brand"].replace({old: new})
+    swapped["keywords"] = swapped["keywords"].replace({old.lower(): new.lower()})
+    return swapped
+
+
+def test_dropping_a_competitor_removes_it_from_the_category_total(tmp_path, rows, sample_config):
+    """A stale brand left in the store keeps inflating the denominator.
+
+    Nothing replaces it on a trailing refresh — the incoming rows never share
+    its key — so without pruning it silently understates everyone else.
+    """
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+
+    without_initech = rows[rows["brand"] != "Initech"]
+    combined = upsert(
+        tmp_path,
+        without_initech,
+        sample_config.smoothing_windows,
+        active_brands=["Acme", "Globex"],
+    )
+
+    assert set(combined["brand"]) == {"Acme", "Globex"}
+    january = combined[combined["date"] == "2025-01-01"].set_index("brand")
+    assert january.loc["Acme", "category_total_volume"] == 1500  # 1000 + 500, no Initech
+    assert january.loc["Acme", "sos_pct"] == pytest.approx(1000 / 1500 * 100)
+
+
+def test_a_renamed_competitor_does_not_linger_after_a_partial_refresh(tmp_path, rows, sample_config):
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+
+    renamed = _swap_competitor(rows, "Initech", "NewCo")
+    trailing = renamed[renamed["date"] >= pd.Timestamp("2025-03-01")]
+
+    combined = upsert(
+        tmp_path,
+        trailing,
+        sample_config.smoothing_windows,
+        active_brands=["Acme", "Globex", "NewCo"],
+    )
+
+    assert "Initech" not in set(combined["brand"])
+    march = combined[combined["date"] == "2025-03-01"].set_index("brand")
+    assert march.loc["Acme", "category_total_volume"] == 2000  # 1200 + 700 + 100
+
+
+def test_pruning_leaves_other_markets_alone(tmp_path, rows, sample_config):
+    uk = rows.copy()
+    uk["market"] = "UK"
+    upsert(tmp_path, pd.concat([rows, uk], ignore_index=True), sample_config.smoothing_windows)
+
+    us_only = rows[rows["brand"] != "Initech"]
+    combined = upsert(
+        tmp_path, us_only, sample_config.smoothing_windows, active_brands=["Acme", "Globex"]
+    )
+
+    assert set(combined[combined["market"] == "US"]["brand"]) == {"Acme", "Globex"}
+    assert "Initech" in set(combined[combined["market"] == "UK"]["brand"])
+
+
+def test_omitting_active_brands_prunes_nothing(tmp_path, rows, sample_config):
+    """Callers that don't declare a category set get the old behaviour."""
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+    combined = upsert(tmp_path, rows[rows["brand"] != "Initech"], sample_config.smoothing_windows)
+
+    assert "Initech" in set(combined["brand"])
+
+
+def test_stale_brands_reports_what_would_be_dropped(tmp_path, rows, sample_config):
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+    stored = load_store(tmp_path)
+
+    assert stale_brands(stored, "US", ["Acme", "Globex"]) == ["Initech"]
+    assert stale_brands(stored, "US", ["Acme", "Globex", "Initech"]) == []
+    assert stale_brands(stored, "DE", ["Acme"]) == []
+
+
+# --------------------------------------------------------------------------
+# Reading a previous run's decisions back
+# --------------------------------------------------------------------------
+
+
+def test_counted_keywords_recovers_the_grouping_decision(tmp_path, rows, sample_config):
+    """'acme app' was dropped as a grouped duplicate; the store remembers."""
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+
+    counted = counted_keywords(load_store(tmp_path), "US")
+    assert counted["Acme"] == ["acme"]
+    assert counted["Globex"] == ["globex"]
+
+
+def test_counted_keywords_is_none_when_nothing_is_stored():
+    assert counted_keywords(pd.DataFrame(), "US") is None
+
+
+def test_counted_keywords_is_scoped_to_one_market(tmp_path, rows, sample_config):
+    upsert(tmp_path, rows, sample_config.smoothing_windows)
+    assert counted_keywords(load_store(tmp_path), "DE") is None
 
 
 def test_config_can_be_reconstructed_from_the_store(tmp_path, rows, sample_config):

@@ -60,7 +60,7 @@ def test_the_data_is_inlined_as_a_javascript_constant(html):
     assert match
     payload = json.loads(match.group(1))
     assert payload["own_brand"] == "Acme"
-    assert payload["months"] == ["2025-01", "2025-02", "2025-03", "2025-04"]
+    assert payload["months"] == [f"2025-0{m}" for m in range(1, 9)]
 
 
 # --------------------------------------------------------------------------
@@ -76,7 +76,7 @@ def test_payload_is_strictly_json_serialisable(store, sample_config):
 
 def test_gaps_become_nulls_not_zeros(store, sample_config):
     payload = build_payload(store, sample_config)
-    # Initech has no April data; a zero here would draw as a collapse to 0%.
+    # Initech has no data in the final month; a zero would draw as a collapse to 0%.
     assert payload["series"]["raw"]["Initech"][-1] is None
 
 
@@ -110,6 +110,47 @@ def test_an_unknown_market_is_a_clear_error(store, sample_config):
     sample_config.market.name = "DE"
     with pytest.raises(ValueError, match="No stored data for market 'DE'"):
         build_payload(store, sample_config)
+
+
+# --------------------------------------------------------------------------
+# Untrusted config values
+# --------------------------------------------------------------------------
+
+
+def test_a_brand_name_cannot_break_out_of_the_script_element(tmp_path, store, sample_config):
+    """An HTML parser ends a script at the first literal `</`, whatever the
+    JavaScript quoting says. This file gets emailed to people."""
+    hostile = '</script><img src=x onerror="alert(1)">'
+    sample_config.brands[1].name = hostile
+    store.loc[store["brand"] == "Globex", "brand"] = hostile
+
+    text = build_dashboard(store, sample_config, tmp_path / "hostile.html").read_text()
+
+    assert "</script><img" not in text
+    assert "\\u003c/script>" in text
+    # ...and it still parses back to the original string.
+    payload = json.loads(re.search(r"const DATA = (\{.*?\});\n", text, re.S).group(1))
+    assert any(b["name"] == hostile for b in payload["brands"])
+
+
+def test_a_brand_name_cannot_break_out_of_the_title(tmp_path, store, sample_config):
+    sample_config.brands[0].name = "</title><script>alert(1)</script>"
+    text = build_dashboard(store, sample_config, tmp_path / "title.html").read_text()
+
+    assert "</title><script>alert(1)" not in text
+    assert "&lt;/title&gt;" in text
+
+
+def test_a_placeholder_in_config_data_is_not_reexpanded(tmp_path, store, sample_config):
+    """Substitution is single-pass: injected content is never rescanned."""
+    sample_config.brands[1].name = "__SOS_CHARTJS__"
+    store.loc[store["brand"] == "Globex", "brand"] = "__SOS_CHARTJS__"
+
+    text = build_dashboard(store, sample_config, tmp_path / "placeholder.html").read_text()
+
+    assert text.count("Chart.js v4.4.1") == 1
+    payload = json.loads(re.search(r"const DATA = (\{.*?\});\n", text, re.S).group(1))
+    assert any(b["name"] == "__SOS_CHARTJS__" for b in payload["brands"])
 
 
 # --------------------------------------------------------------------------

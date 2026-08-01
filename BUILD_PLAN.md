@@ -352,6 +352,43 @@ explicit `--config` still wins, because only a config file carries the `ambiguou
 
 **`click` over `argparse`** (§3 allowed either), for the `--help` output.
 
+### Fixed after automated review of the first push
+
+Four findings, all genuine, all in newly written code.
+
+**A brand removed from the config kept counting (P1).** On a trailing refresh the incoming
+rows never share a `(date, brand, market)` key with a departed competitor, so nothing
+replaced it and `recompute()` kept it in the category total. Swapping `OldCo` for `NewCo`
+left both in the store and reported 33.3% where the answer was 50.0%. `upsert()` now takes
+the active category set and drops rows for any other brand in the same market, warning
+about what it removed. Other markets are untouched.
+
+**Grouping could be decided from too little evidence (P1).** A routine refresh fetched
+three months. Google's volumes are bucketed, so two distinct low-volume keywords can share
+two or three values by chance — enough for the guard to merge them, drop a real keyword and
+leave a false cliff in the brand's history. Two changes: a new grouping decision now
+requires a response spanning ≥6 months, and below that the previous decision is carried
+forward (recovered from the store's `keywords` column, which already records what was
+counted). The default refresh window also went from 3 months to 12, which costs nothing —
+DataForSEO bills per request, not per month — and keeps every routine run above the bar.
+
+**Config values could break out of the inlined `<script>` (P2).** An HTML parser ends a
+script element at the first literal `</`, whatever the JavaScript quoting says, so a brand
+named `</script>…` would terminate the block early — in a file explicitly meant to be
+emailed to clients. `<` is now escaped as `\u003c` in the payload and the title is
+HTML-escaped. Substitution also became a single pass, so injected content is never rescanned
+for other placeholders: a brand named `__SOS_CHARTJS__` would otherwise have had 200 KB of
+library spliced into the middle of the JSON.
+
+**`sos init` interpolated raw input into YAML (P2).** `Acme #1` lost everything after the
+`#`, `Foo: Bar` was a parse error, and `Null`/`Yes`/`123` came back from the loader as
+something other than a string. Values now go through PyYAML for quoting while the layout and
+explanatory comments stay hand-written.
+
+The test fixture grew from 4 months to 8 as a consequence of the second fix — 4 months is
+below the new evidence bar, and a 4-month response was never representative of a real
+backfill anyway.
+
 ### Not built, as specified
 
 Phase 8 (LLM commentary) is untouched. `commentary.generate(facts) -> list[str]` is

@@ -21,6 +21,7 @@ from sos.transform import (
     detect_grouped_keywords,
     dropped_keywords,
     missing_brand_months,
+    resolve_grouping,
     rows_to_frame,
 )
 
@@ -50,17 +51,17 @@ def test_rows_to_frame_builds_month_start_dates(sample_rows):
 
     assert set(frame.columns) == {"keyword", "date", "search_volume"}
     assert frame["date"].min() == pd.Timestamp("2025-01-01")
-    assert frame["date"].max() == pd.Timestamp("2025-04-01")
+    assert frame["date"].max() == pd.Timestamp("2025-08-01")
     assert (frame["date"].dt.day == 1).all()
 
 
 def test_rows_to_frame_preserves_nulls_as_nan(sample_rows):
     """A missing volume is unknown, not zero — the two mean different things."""
     frame = rows_to_frame(sample_rows)
-    initech_april = frame[(frame["keyword"] == "initech") & (frame["date"] == "2025-04-01")]
+    initech_gap = frame[(frame["keyword"] == "initech") & (frame["date"] == "2025-08-01")]
 
-    assert len(initech_april) == 1
-    assert pd.isna(initech_april.iloc[0]["search_volume"])
+    assert len(initech_gap) == 1
+    assert pd.isna(initech_gap.iloc[0]["search_volume"])
 
 
 def test_rows_to_frame_handles_empty_input():
@@ -155,6 +156,84 @@ def test_three_way_group_keeps_only_the_first_keyword():
     assert dropped_keywords(groups) == {"acme app", "acme login"}
 
 
+def test_a_short_response_cannot_invent_a_grouping():
+    """Bucketed volumes make coincidence cheap over three months.
+
+    Two distinct low-volume keywords landing on the same three values would
+    otherwise get merged, dropping a real keyword and putting a false cliff in
+    the brand's history.
+    """
+    config = _config(
+        Brand(name="Acme", keywords=["acme", "acme app"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    frame = rows_to_frame(
+        _rows("acme", [10, 10, 10]) + _rows("acme app", [10, 10, 10]) + _rows("globex", [50, 50, 50])
+    )
+
+    excluded, warnings = resolve_grouping(frame, config)
+    assert excluded == set()
+    assert any("too short" in w for w in warnings)
+
+
+def test_a_long_response_is_allowed_to_decide():
+    config = _config(
+        Brand(name="Acme", keywords=["acme", "acme app"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    frame = rows_to_frame(
+        _rows("acme", [10] * 6) + _rows("acme app", [10] * 6) + _rows("globex", [50] * 6)
+    )
+
+    excluded, warnings = resolve_grouping(frame, config)
+    assert excluded == {"acme app"}
+    assert any("grouped" in w for w in warnings)
+
+
+def test_a_short_response_carries_forward_the_previous_decision():
+    """A routine refresh must not undo a grouping the backfill established."""
+    config = _config(
+        Brand(name="Acme", keywords=["acme", "acme app"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    # In this short window the two keywords happen to differ — not evidence.
+    frame = rows_to_frame(
+        _rows("acme", [10, 20, 30]) + _rows("acme app", [11, 21, 31]) + _rows("globex", [50, 50, 50])
+    )
+
+    excluded, warnings = resolve_grouping(
+        frame, config, previously_counted={"Acme": ["acme"], "Globex": ["globex"]}
+    )
+
+    assert excluded == {"acme app"}
+    assert any("reusing the keyword grouping" in w for w in warnings)
+
+
+def test_carrying_forward_keeps_keywords_a_previous_run_counted():
+    config = _config(
+        Brand(name="Acme", keywords=["acme", "acme app"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    frame = rows_to_frame(
+        _rows("acme", [10, 10, 10]) + _rows("acme app", [10, 10, 10]) + _rows("globex", [50, 50, 50])
+    )
+
+    excluded, warnings = resolve_grouping(
+        frame, config, previously_counted={"Acme": ["acme", "acme app"], "Globex": ["globex"]}
+    )
+
+    assert excluded == set()
+    assert warnings == []
+
+
+def test_the_refresh_window_is_wide_enough_to_decide_grouping():
+    """The default routine run must not land in the can't-decide branch."""
+    from sos.cli import DEFAULT_REFRESH_MONTHS
+    from sos.transform import MIN_MONTHS_TO_DECIDE_GROUPING
+
+    assert DEFAULT_REFRESH_MONTHS >= MIN_MONTHS_TO_DECIDE_GROUPING
+
+
 def test_distinct_keywords_are_left_alone():
     config = _config(
         Brand(name="Acme", keywords=["acme", "acme app"], is_own_brand=True),
@@ -209,8 +288,8 @@ def test_whole_brand_gap_is_null_not_zero(sample_rows, sample_config):
     frame = rows_to_frame(sample_rows)
     brands = aggregate_to_brands(frame, sample_config)
 
-    april = brands[(brands["brand"] == "Initech") & (brands["date"] == "2025-04-01")]
-    assert pd.isna(april.iloc[0]["raw_volume"])
+    august = brands[(brands["brand"] == "Initech") & (brands["date"] == "2025-08-01")]
+    assert pd.isna(august.iloc[0]["raw_volume"])
 
     gaps = missing_brand_months(brands)
     assert list(gaps["brand"]) == ["Initech"]
@@ -275,10 +354,10 @@ def test_missing_brand_gets_null_share_and_is_excluded_from_the_total(sample_row
         aggregate_to_brands(frame, sample_config, exclude_keywords=dropped_keywords(groups))
     )
 
-    april = shares[shares["date"] == "2025-04-01"].set_index("brand")
-    assert pd.isna(april.loc["Initech", "sos_pct"])
-    assert april.loc["Acme", "category_total_volume"] == 2100  # 1300 + 800, Initech excluded
-    assert april.loc["Acme", "sos_pct"] == pytest.approx(1300 / 2100 * 100)
+    august = shares[shares["date"] == "2025-08-01"].set_index("brand")
+    assert pd.isna(august.loc["Initech", "sos_pct"])
+    assert august.loc["Acme", "category_total_volume"] == 2100  # 1300 + 800, Initech excluded
+    assert august.loc["Acme", "sos_pct"] == pytest.approx(1300 / 2100 * 100)
 
 
 def test_zero_category_total_does_not_divide_by_zero():

@@ -23,7 +23,7 @@ import os
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
 import pandas as pd
 
@@ -119,16 +119,34 @@ def build_rows(
     return frame[ordered]
 
 
+def stale_brands(frame: pd.DataFrame, market: str, active_brands: Iterable[str]) -> List[str]:
+    """Brands stored for a market that are no longer in the category set."""
+    if frame.empty or "brand" not in frame.columns:
+        return []
+    subset = frame[frame["market"].astype(str) == str(market)]
+    stored = {str(b) for b in subset["brand"].dropna().unique()}
+    return sorted(stored - set(active_brands))
+
+
 def upsert(
     data_dir: Path,
     new_rows: pd.DataFrame,
     smoothing_windows: Sequence[int],
+    active_brands: Optional[Iterable[str]] = None,
 ) -> pd.DataFrame:
     """Merge ``new_rows`` into the store and rewrite it, atomically.
 
     Existing rows sharing a ``(date, brand, market)`` key with an incoming row
     are replaced, never duplicated. Every derived column is then recomputed
     across the whole series before the file is written.
+
+    ``active_brands`` is the category set this write was produced from. Rows
+    for any *other* brand in the same market are dropped first. Without that,
+    swapping a competitor out of the config and running an ordinary trailing
+    refresh would leave the old brand in the store — the incoming rows never
+    collide with its key, so nothing replaces it — and it would keep
+    contributing to the category total, understating every remaining brand's
+    share. Other markets are untouched.
     """
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -138,6 +156,19 @@ def upsert(
     if not new_rows.empty:
         new_rows = new_rows.copy()
         new_rows["date"] = pd.to_datetime(new_rows["date"])
+
+    if active_brands is not None and not existing.empty and not new_rows.empty:
+        markets = {str(m) for m in new_rows["market"].dropna().unique()}
+        drop = existing["market"].astype(str).isin(markets) & ~existing["brand"].astype(str).isin(
+            set(active_brands)
+        )
+        if drop.any():
+            logger.info(
+                "Dropping %d row(s) for brands no longer in the category set: %s",
+                int(drop.sum()),
+                ", ".join(sorted(existing.loc[drop, "brand"].astype(str).unique())),
+            )
+            existing = existing[~drop]
 
     if existing.empty:
         combined = new_rows.copy()
@@ -253,6 +284,30 @@ def write_store(data_dir: Path, frame: pd.DataFrame) -> Path:
         raise
 
     return target
+
+
+def counted_keywords(frame: pd.DataFrame, market: str) -> Optional[Dict[str, List[str]]]:
+    """What a previous run actually counted, per brand, for this market.
+
+    The ``keywords`` column records the set left after the grouped-keyword
+    guard ran, so this recovers that decision without needing a new column.
+    Returns None when there is nothing stored to learn from.
+    """
+    if frame.empty or "keywords" not in frame.columns:
+        return None
+
+    subset = frame[frame["market"].astype(str) == str(market)]
+    if subset.empty:
+        return None
+
+    counted: Dict[str, List[str]] = {}
+    for brand, group in subset.groupby("brand", sort=False):
+        # The most recent row reflects the most recent decision.
+        latest = group.sort_values("date").iloc[-1]
+        keywords = [k for k in str(latest.get("keywords") or "").split(";") if k]
+        if keywords:
+            counted[str(brand)] = keywords
+    return counted or None
 
 
 def config_from_store(frame: pd.DataFrame, market: Optional[str] = None) -> Config:

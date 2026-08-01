@@ -15,7 +15,9 @@ the CDN, the recipient gets a page with no charts and no explanation.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timezone
+from html import escape as html_escape
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -44,19 +46,37 @@ def build_dashboard(
     """Write the dashboard and return the path it landed at."""
     payload = build_payload(frame, config, generated_at=generated_at)
 
-    html = TEMPLATE_PATH.read_text(encoding="utf-8")
-    html = html.replace(
-        PAYLOAD_PLACEHOLDER,
-        json.dumps(payload, allow_nan=False, separators=(",", ":")),
-    )
-    html = html.replace(TITLE_PLACEHOLDER, f"Share of Search — {config.own_brand.name} ({config.market.name})")
-    # Inlined last: the library is large and contains no placeholders of its own.
-    html = html.replace(CHARTJS_PLACEHOLDER, _chartjs_source())
+    substitutions = {
+        PAYLOAD_PLACEHOLDER: _script_safe_json(payload),
+        TITLE_PLACEHOLDER: html_escape(
+            f"Share of Search — {config.own_brand.name} ({config.market.name})"
+        ),
+        CHARTJS_PLACEHOLDER: _chartjs_source(),
+    }
+
+    # One pass, so substituted content is never rescanned for other
+    # placeholders — a brand named "__SOS_CHARTJS__" would otherwise have
+    # 200 KB of library spliced into the middle of the JSON payload.
+    pattern = re.compile("|".join(re.escape(key) for key in substitutions))
+    html = pattern.sub(lambda match: substitutions[match.group(0)], TEMPLATE_PATH.read_text(encoding="utf-8"))
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(html, encoding="utf-8")
     return out_path
+
+
+def _script_safe_json(payload: Dict[str, Any]) -> str:
+    """Serialise the payload so it cannot break out of its ``<script>`` element.
+
+    An HTML parser ends a script element at the first literal ``</`` sequence,
+    regardless of JavaScript string quoting. A brand or keyword containing
+    ``</script>`` would therefore terminate the block early and let whatever
+    followed it run — in a file that is explicitly meant to be emailed to
+    other people. Escaping ``<`` as ``\\u003c`` is inert inside a JSON string
+    and parses back to exactly the same value.
+    """
+    return json.dumps(payload, allow_nan=False, separators=(",", ":")).replace("<", "\\u003c")
 
 
 def _chartjs_source() -> str:
