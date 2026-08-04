@@ -1,0 +1,852 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__SOS_TITLE__</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f4f3f0;
+    --surface-1: #fcfcfb;
+    --border:    #e0dfda;
+    --border-strong: #c9c8c2;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #7a7975;
+    --grid: #ebeae6;
+    --accent-soft: #eef4fd;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-6: #008300;
+    --series-7: #4a3aa7;
+    --series-8: #e34948;
+    --up: #0ca30c;
+    --down: #d03b3b;
+    --note-bg: #fdf6e6;
+    --note-border: #fab219;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border:    #33332f;
+      --border-strong: #4a4a45;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #918f85;
+      --grid: #2a2a27;
+      --accent-soft: #17222f;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
+      --series-6: #008300;
+      --series-7: #9085e9;
+      --series-8: #e66767;
+      --note-bg: #262115;
+      --note-border: #fab219;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border:    #33332f;
+    --border-strong: #4a4a45;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #918f85;
+    --grid: #2a2a27;
+    --accent-soft: #17222f;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-6: #008300;
+    --series-7: #9085e9;
+    --series-8: #e66767;
+    --note-bg: #262115;
+    --note-border: #fab219;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 20px 64px;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header { padding: 40px 0 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+  h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: -0.02em; font-weight: 620; }
+  .sub { color: var(--text-secondary); font-size: 14px; margin: 0; }
+  .theme-toggle {
+    background: var(--surface-1); border: 1px solid var(--border); color: var(--text-secondary);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .theme-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    margin: 0 0 16px; font-size: 12px; font-weight: 620;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted);
+  }
+
+  /* Commentary */
+  .commentary { background: var(--accent-soft); border-color: transparent; }
+  .commentary ul { margin: 0; padding-left: 20px; }
+  .commentary li { margin-bottom: 10px; color: var(--text-primary); }
+  .commentary li:last-child { margin-bottom: 0; }
+
+  /* Hero stats */
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .stat {
+    flex: 1 1 170px; background: var(--surface-1); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .stat .label { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+  .stat .value { font-size: 27px; font-weight: 620; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .stat .delta { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+  /* Controls */
+  .controls { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; }
+  .control-group { display: flex; align-items: center; gap: 8px; }
+  .control-group > span { font-size: 12px; color: var(--text-muted); letter-spacing: 0.04em; text-transform: uppercase; }
+  .segmented { display: inline-flex; background: var(--surface-0); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+  .segmented button {
+    border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 13px;
+    padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  }
+  .segmented button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-primary); box-shadow: 0 1px 2px rgba(0,0,0,.10); font-weight: 560; }
+
+  .chart-box { position: relative; height: 400px; }
+  .chart-note { font-size: 12.5px; color: var(--text-muted); margin-top: 12px; }
+
+  .fallback {
+    display: none; padding: 20px; border: 1px dashed var(--border-strong);
+    border-radius: 10px; color: var(--text-secondary); font-size: 14px; text-align: center;
+  }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid var(--border); }
+  th { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); font-weight: 560; }
+  th:first-child, td:first-child { text-align: left; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.num { font-variant-numeric: tabular-nums; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 9px; vertical-align: middle; }
+  .own { font-weight: 620; }
+  .tag {
+    display: inline-block; margin-left: 8px; font-size: 10.5px; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--text-muted); border: 1px solid var(--border-strong);
+    border-radius: 4px; padding: 1px 5px; vertical-align: middle;
+  }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .table-scroll { overflow-x: auto; }
+
+  /* Buttons */
+  .buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    background: var(--surface-0); border: 1px solid var(--border-strong); color: var(--text-primary);
+    border-radius: 8px; padding: 9px 15px; font: inherit; font-size: 13.5px; cursor: pointer;
+  }
+  .btn:hover { background: var(--accent-soft); }
+
+  /* Methodology */
+  details { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 0; }
+  summary {
+    cursor: pointer; padding: 18px 24px; font-size: 14px; font-weight: 560;
+    list-style: none; display: flex; align-items: center; gap: 10px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--text-muted); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .method-body { padding: 0 24px 24px; font-size: 14px; color: var(--text-secondary); }
+  .method-body h3 { font-size: 13px; color: var(--text-primary); margin: 20px 0 6px; }
+  .method-body p { margin: 0 0 10px; }
+  .method-body dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 20px; margin: 0 0 6px; }
+  .method-body dt { color: var(--text-muted); font-size: 13px; }
+  .method-body dd { margin: 0; color: var(--text-primary); font-size: 13px; }
+  .indicator-note {
+    background: var(--note-bg); border-left: 3px solid var(--note-border);
+    border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 18px 0 4px; color: var(--text-primary);
+  }
+  .indicator-note strong { display: block; margin-bottom: 6px; font-size: 13px; }
+  .indicator-note p { font-size: 13.5px; margin: 0 0 8px; color: var(--text-secondary); }
+  .indicator-note p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 28px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
+  a { color: inherit; }
+  footer .credit { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+  footer .credit:hover { color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1 id="title"></h1>
+      <p class="sub" id="subtitle"></p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Switch theme</button>
+  </header>
+
+  <div class="stats" id="stats"></div>
+
+  <section class="card commentary" id="commentaryCard">
+    <h2>What this month shows</h2>
+    <ul id="commentary"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Share of search over time</h2>
+    <div class="controls">
+      <div class="control-group">
+        <span>View</span>
+        <div class="segmented" id="viewToggle" role="group" aria-label="Chart view">
+          <button type="button" data-view="lines" aria-pressed="true">Lines</button>
+          <button type="button" data-view="composition" aria-pressed="false">Composition</button>
+        </div>
+      </div>
+      <div class="control-group">
+        <span>Smoothing</span>
+        <div class="segmented" id="smoothToggle" role="group" aria-label="Smoothing window"></div>
+      </div>
+      <div class="control-group" id="rangeGroup" hidden>
+        <span>Range</span>
+        <div class="segmented" id="rangeToggle" role="group" aria-label="Date range"></div>
+      </div>
+    </div>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+    <div class="fallback" id="fallback">
+      The charting library failed to initialise, so the plot is unavailable.
+      Every number is still in the table below and in both CSV downloads.
+    </div>
+    <p class="chart-note" id="chartNote"></p>
+  </section>
+
+  <section class="card">
+    <h2 id="tableHeading">Latest month</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Brand</th>
+            <th>Share of search</th>
+            <th>Month on month</th>
+            <th>Year on year</th>
+            <th>Rank</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Download</h2>
+    <div class="buttons">
+      <button class="btn" id="dlView" type="button">Current view (CSV)</button>
+      <button class="btn" id="dlFull" type="button">Full dataset (CSV)</button>
+    </div>
+    <p class="chart-note">Both files carry a header block recording the source, market, competitor set and date range, so the numbers stay explicable once the file leaves this page.</p>
+  </section>
+
+  <details>
+    <summary>About this metric</summary>
+    <div class="method-body" id="method"></div>
+  </details>
+
+  <footer id="footer"></footer>
+</div>
+
+<script>
+const DATA = __SOS_PAYLOAD__;
+</script>
+<!-- Chart.js 4.4.1, MIT licensed, inlined so this file needs no network at all. -->
+<script>__SOS_CHARTJS__</script>
+<script>
+(function () {
+  "use strict";
+
+  var SERIES_SLOTS = 8;
+  var REPO_URL = "https://github.com/afllewellyn/share-of-search-tool";
+  var state = { view: "lines", smoothing: "raw", range: "all", chart: null };
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function seriesColor(index) {
+    return cssVar("--series-" + ((index % SERIES_SLOTS) + 1));
+  }
+  function fmtPct(v) { return v === null || v === undefined ? "—" : v.toFixed(1) + "%"; }
+  function fmtPP(v) {
+    if (v === null || v === undefined) return "—";
+    return (v >= 0 ? "+" : "") + v.toFixed(1) + "pp";
+  }
+  function monthLabel(ym) {
+    var parts = ym.split("-");
+    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, 1);
+    return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  }
+
+  // ---- Header, stats, commentary -----------------------------------------
+
+  function renderHeader() {
+    document.getElementById("title").textContent =
+      "Share of Search — " + DATA.own_brand;
+    document.getElementById("subtitle").textContent =
+      DATA.brands.map(function (b) { return b.name; }).join(" · ") +
+      "  |  " + DATA.market +
+      "  |  " + monthLabel(DATA.months[0]) + " – " + monthLabel(DATA.months[DATA.months.length - 1]);
+    // Built as nodes rather than innerHTML so nothing from DATA can inject
+    // markup into a file that gets emailed around. The Les Binet credit lives
+    // in the methodology section, which is where a reader looking for the
+    // source of the metric will actually go.
+    var footer = document.getElementById("footer");
+    footer.textContent = "Generated " + DATA.generated_at +
+      " · organic branded search volume via " + DATA.data_source + " · Developed by ";
+    var link = document.createElement("a");
+    link.href = REPO_URL;
+    link.textContent = "Andrew Llewellyn";
+    link.className = "credit";
+    footer.appendChild(link);
+  }
+
+  function renderStats() {
+    var own = DATA.latest.rows.filter(function (r) { return r.is_own_brand; })[0];
+    if (!own) return;
+    var leader = DATA.latest.rows[0];
+    var tiles = [
+      { label: DATA.own_brand + " share", value: fmtPct(own.sos_pct),
+        delta: fmtPP(own.mom_delta_pp) + " month on month" },
+      { label: "Rank", value: own.rank ? "#" + own.rank : "—",
+        delta: "of " + DATA.brands.length + " brands tracked" },
+      { label: "Category leader", value: leader.brand,
+        delta: fmtPct(leader.sos_pct) + " of category search" },
+      { label: "History", value: DATA.months.length + " mo",
+        delta: monthLabel(DATA.months[0]) + " onward" }
+    ];
+    document.getElementById("stats").innerHTML = tiles.map(function (t) {
+      return '<div class="stat"><div class="label">' + esc(t.label) + '</div>' +
+             '<div class="value">' + esc(t.value) + '</div>' +
+             '<div class="delta">' + esc(t.delta) + '</div></div>';
+    }).join("");
+  }
+
+  function renderCommentary() {
+    var list = document.getElementById("commentary");
+    if (!DATA.commentary || !DATA.commentary.length) {
+      document.getElementById("commentaryCard").style.display = "none";
+      return;
+    }
+    list.innerHTML = DATA.commentary.map(function (b) {
+      return "<li>" + esc(b) + "</li>";
+    }).join("");
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---- Table --------------------------------------------------------------
+
+  function renderTable() {
+    document.getElementById("tableHeading").textContent =
+      "Latest month — " + monthLabel(DATA.latest.month);
+    document.getElementById("tableBody").innerHTML = DATA.latest.rows.map(function (r) {
+      var index = DATA.brands.findIndex(function (b) { return b.name === r.brand; });
+      var meta = DATA.brands[index] || {};
+      return "<tr>" +
+        '<td class="' + (r.is_own_brand ? "own" : "") + '">' +
+          '<span class="swatch" style="background:' + seriesColor(index) + '"></span>' +
+          esc(r.brand) +
+          (meta.ambiguous ? '<span class="tag">ambiguous</span>' : "") +
+          (r.data_gap ? '<span class="tag">no data</span>' : "") +
+        "</td>" +
+        '<td class="num">' + fmtPct(r.sos_pct) + "</td>" +
+        '<td class="num ' + deltaClass(r.mom_delta_pp) + '">' + fmtPP(r.mom_delta_pp) + "</td>" +
+        '<td class="num ' + deltaClass(r.yoy_delta_pp) + '">' + fmtPP(r.yoy_delta_pp) + "</td>" +
+        '<td class="num">' + (r.rank ? "#" + r.rank : "—") + "</td>" +
+      "</tr>";
+    }).join("");
+  }
+
+  function deltaClass(v) {
+    if (v === null || v === undefined || Math.abs(v) < 0.05) return "";
+    return v > 0 ? "up" : "down";
+  }
+
+  // ---- Chart --------------------------------------------------------------
+
+  function activeSeries() {
+    return DATA.series[state.smoothing] || DATA.series.raw;
+  }
+
+  // A trailing N-month average has no value until N months exist, so the 12-month
+  // view legitimately begins nine months later than the 3-month one. Plotting that
+  // warm-up as empty space reads as "the category had no search yet", which is the
+  // opposite of what it means — so trim it off the axis and explain the offset in
+  // the note instead of leaving a void for the reader to interpret.
+  function firstPopulatedIndex(values) {
+    for (var i = 0; i < DATA.months.length; i++) {
+      for (var b = 0; b < DATA.brands.length; b++) {
+        var v = values[DATA.brands[b].name][i];
+        if (v !== null && v !== undefined) return i;
+      }
+    }
+    return 0;
+  }
+
+  // Trimming is view-only — DATA still holds every month, so both CSV exports
+  // and the table are unaffected by whatever is on screen.
+  function visibleWindow() {
+    var values = activeSeries();
+    var warmup = firstPopulatedIndex(values);
+    var start = warmup;
+    if (state.range !== "all") {
+      start = Math.max(start, DATA.months.length - Number(state.range));
+    }
+    return { start: start, warmup: warmup, values: values };
+  }
+
+  function chartNote(win) {
+    var parts = [state.view === "composition"
+      ? "Every month sums to 100% of the tracked category. Band thickness is each brand's share."
+      : (state.smoothing === "raw"
+          ? "Unsmoothed monthly share. Single months are noisy — seasonality alone moves these lines."
+          : state.smoothing + "-month trailing average.")];
+
+    // Only explain the warm-up when it is what sets the left edge. With a
+    // narrower range selected the range is the reason the chart starts where
+    // it does, and both sentences at once contradict each other.
+    if (state.smoothing !== "raw" && win.warmup > 0 && win.start === win.warmup) {
+      parts.push(
+        "Begins " + monthLabel(DATA.months[win.warmup]) + ", not " + monthLabel(DATA.months[0]) +
+        ": a full " + state.smoothing + "-month window is required before an average is " +
+        "meaningful, so the first " + win.warmup + " month" + (win.warmup === 1 ? "" : "s") +
+        " have none. This is why a shorter window covers more of the chart than a longer one."
+      );
+    }
+    if (state.range !== "all") {
+      parts.push("Showing the last " + state.range + " months. Every stored month is still in both CSV downloads.");
+    }
+    return parts.join(" ");
+  }
+
+  // Past four series the labels collide with each other, so the legend
+  // carries identity alone from there on.
+  var DIRECT_LABEL_LIMIT = 4;
+
+  // Draws the series name beside its final point. Identity then survives
+  // colorblindness, greyscale printing and a legend nobody reads.
+  var directLabels = {
+    id: "directLabels",
+    afterDatasetsDraw: function (chart) {
+      if (chart.data.datasets.length > DIRECT_LABEL_LIMIT) return;
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "600 12px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+      ctx.textBaseline = "middle";
+      chart.data.datasets.forEach(function (dataset, i) {
+        var meta = chart.getDatasetMeta(i);
+        if (meta.hidden) return;
+        for (var p = meta.data.length - 1; p >= 0; p--) {
+          var point = meta.data[p];
+          if (dataset.data[p] === null || dataset.data[p] === undefined) continue;
+          if (point.x > chart.chartArea.right - 4) continue;
+          ctx.fillStyle = dataset.borderColor === cssVar("--surface-1")
+            ? dataset.backgroundColor : dataset.borderColor;
+          ctx.fillText(dataset.label, Math.min(point.x + 8, chart.chartArea.right - 4), point.y);
+          break;
+        }
+      });
+      ctx.restore();
+    }
+  };
+
+  var crosshair = {
+    id: "crosshair",
+    afterDatasetsDraw: function (chart) {
+      var active = chart.tooltip && chart.tooltip.getActiveElements();
+      if (!active || !active.length) return;
+      var x = active[0].element.x;
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x, chart.chartArea.top);
+      ctx.lineTo(x, chart.chartArea.bottom);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = cssVar("--border-strong");
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  function buildChart() {
+    var canvas = document.getElementById("chart");
+    if (typeof Chart === "undefined") {
+      canvas.style.display = "none";
+      document.getElementById("fallback").style.display = "block";
+      return;
+    }
+    if (state.chart) state.chart.destroy();
+
+    var composition = state.view === "composition";
+    var win = visibleWindow();
+    var values = win.values;
+    var months = DATA.months.slice(win.start);
+    var surface = cssVar("--surface-1");
+    // Only reserve gutter space when something is actually going to be
+    // written into it, or a five-brand chart ends up with a dead margin.
+    var labelled = !composition && DATA.brands.length <= DIRECT_LABEL_LIMIT;
+
+    var datasets = DATA.brands.map(function (brand, i) {
+      var color = seriesColor(i);
+      return {
+        label: brand.name,
+        data: values[brand.name].slice(win.start),
+        // In composition view a 2px surface-coloured border becomes the gap
+        // between bands, so adjacent fills never touch.
+        borderColor: composition ? surface : color,
+        backgroundColor: color,
+        borderWidth: 2,
+        fill: composition ? (i === 0 ? "origin" : "-1") : false,
+        tension: 0.25,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHitRadius: 12,
+        spanGaps: false
+      };
+    });
+
+    state.chart = new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: { labels: months.map(monthLabel), datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        layout: { padding: { right: labelled ? 76 : 8 } },
+        scales: {
+          x: {
+            grid: { display: false },
+            border: { color: cssVar("--border") },
+            ticks: { color: cssVar("--text-muted"), maxRotation: 0, autoSkipPadding: 24 }
+          },
+          y: {
+            stacked: composition,
+            beginAtZero: true,
+            max: composition ? 100 : undefined,
+            grid: { color: cssVar("--grid") },
+            border: { display: false },
+            ticks: {
+              color: cssVar("--text-muted"),
+              callback: function (v) { return v + "%"; }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              color: cssVar("--text-secondary"),
+              usePointStyle: true,
+              pointStyle: "circle",
+              boxWidth: 8,
+              boxHeight: 8,
+              padding: 20,
+              // Chart.js draws each label with `legendItem.fontColor`, not with
+              // `labels.color` — that option is only ever read by the default
+              // generateLabels, which we replace here to keep colours pinned to
+              // config order. Omitting fontColor leaves ctx.fillStyle unset, so
+              // the text keeps whatever fill was last used (black) and stops
+              // responding to the theme entirely.
+              generateLabels: function (chart) {
+                var labelColor = cssVar("--text-secondary");
+                var mutedColor = cssVar("--text-muted");
+                return chart.data.datasets.map(function (dataset, i) {
+                  var visible = chart.isDatasetVisible(i);
+                  return {
+                    text: dataset.label,
+                    fillStyle: seriesColor(i),
+                    strokeStyle: seriesColor(i),
+                    fontColor: visible ? labelColor : mutedColor,
+                    hidden: !visible,
+                    datasetIndex: i
+                  };
+                });
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: cssVar("--surface-0"),
+            titleColor: cssVar("--text-primary"),
+            bodyColor: cssVar("--text-secondary"),
+            borderColor: cssVar("--border-strong"),
+            borderWidth: 1,
+            padding: 12,
+            boxPadding: 5,
+            usePointStyle: true,
+            callbacks: {
+              label: function (ctx) {
+                var v = ctx.parsed.y;
+                return " " + ctx.dataset.label + ": " + (v === null ? "no data" : v.toFixed(1) + "%");
+              }
+            }
+          }
+        }
+      },
+      plugins: composition ? [crosshair] : [directLabels, crosshair]
+    });
+
+    document.getElementById("chartNote").textContent = chartNote(win);
+  }
+
+  // ---- Controls -----------------------------------------------------------
+
+  function renderSmoothToggle() {
+    var container = document.getElementById("smoothToggle");
+    var options = [{ key: "raw", label: "Raw" }].concat(
+      DATA.smoothing_windows.map(function (w) {
+        return { key: String(w), label: w + " mo" };
+      })
+    );
+    container.innerHTML = options.map(function (o) {
+      return '<button type="button" data-smoothing="' + o.key + '" aria-pressed="' +
+             (o.key === state.smoothing) + '">' + o.label + "</button>";
+    }).join("");
+    container.addEventListener("click", function (event) {
+      var key = event.target.getAttribute && event.target.getAttribute("data-smoothing");
+      if (!key) return;
+      state.smoothing = key;
+      syncPressed(container, "data-smoothing", key);
+      buildChart();
+    });
+  }
+
+  // Only offer windows the data can actually fill, and only when there is
+  // something to narrow — a 30-month store gets 12 and 24, a 9-month one gets
+  // no control at all rather than a row of buttons that all show the same thing.
+  var RANGE_OPTIONS = [12, 24, 36];
+
+  function renderRangeToggle() {
+    var available = RANGE_OPTIONS.filter(function (n) { return n < DATA.months.length; });
+    if (!available.length) return;
+
+    document.getElementById("rangeGroup").hidden = false;
+    var container = document.getElementById("rangeToggle");
+    container.innerHTML = available.map(function (n) {
+      return '<button type="button" data-range="' + n + '" aria-pressed="false">' + n + " mo</button>";
+    }).join("") + '<button type="button" data-range="all" aria-pressed="true">All</button>';
+
+    container.addEventListener("click", function (event) {
+      var key = event.target.getAttribute && event.target.getAttribute("data-range");
+      if (!key) return;
+      state.range = key;
+      syncPressed(container, "data-range", key);
+      buildChart();
+    });
+  }
+
+  function bindViewToggle() {
+    var container = document.getElementById("viewToggle");
+    container.addEventListener("click", function (event) {
+      var view = event.target.getAttribute && event.target.getAttribute("data-view");
+      if (!view) return;
+      state.view = view;
+      syncPressed(container, "data-view", view);
+      buildChart();
+    });
+  }
+
+  function syncPressed(container, attribute, value) {
+    Array.prototype.forEach.call(container.querySelectorAll("button"), function (button) {
+      button.setAttribute("aria-pressed", String(button.getAttribute(attribute) === value));
+    });
+  }
+
+  function bindTheme() {
+    document.getElementById("themeToggle").addEventListener("click", function () {
+      var current = document.documentElement.getAttribute("data-theme");
+      var dark = current
+        ? current === "dark"
+        : window.matchMedia("(prefers-color-scheme: dark)").matches;
+      document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+      renderTable();
+      buildChart();
+    });
+  }
+
+  // ---- CSV export ---------------------------------------------------------
+
+  function metadataHeader(scope, smoothingNote) {
+    return [
+      "# Share of Search — " + scope,
+      "# Own brand: " + DATA.own_brand,
+      "# Competitor set: " + DATA.brands.map(function (b) { return b.name; }).join(" | "),
+      "# Market: " + DATA.market + " (location " + DATA.location_code +
+        ", language " + DATA.language_code + ")",
+      "# Date range: " + DATA.months[0] + " to " + DATA.months[DATA.months.length - 1],
+      "# Smoothing: " + smoothingNote,
+      "# Source: organic branded search volume via " + DATA.data_source,
+      "# Generated: " + DATA.generated_at,
+      "# Methodology: Share of Search per Les Binet, IPA EffWorks Global 2020.",
+      "# Shares are relative to the competitor set above, not to all search.",
+      ""
+    ];
+  }
+
+  function csvCell(value) {
+    if (value === null || value === undefined) return "";
+    var text = String(value);
+    return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+  }
+
+  function currentViewCsv() {
+    var values = activeSeries();
+    var names = DATA.brands.map(function (b) { return b.name; });
+    var lines = metadataHeader(
+      state.smoothing === "raw" ? "raw monthly share (%)" : state.smoothing + "-month average share (%)",
+      state.smoothing === "raw" ? "none (raw monthly)" : state.smoothing + "-month trailing average"
+    );
+    lines.push(["month"].concat(names).map(csvCell).join(","));
+    DATA.months.forEach(function (month, i) {
+      lines.push([month].concat(names.map(function (name) {
+        var v = values[name][i];
+        return v === null || v === undefined ? "" : v.toFixed(2);
+      })).map(csvCell).join(","));
+    });
+    return lines.join("\n");
+  }
+
+  function fullDatasetCsv() {
+    // The full export carries every window as its own column, so the active
+    // toggle is irrelevant here — describe what's actually in the file.
+    var lines = metadataHeader(
+      "full dataset, every stored column",
+      "raw plus " + DATA.smoothing_windows.map(function (w) { return w + "-month"; }).join(" and ") +
+        " trailing averages, each in its own column"
+    );
+    lines.push(DATA.columns.map(csvCell).join(","));
+    DATA.rows.forEach(function (row) {
+      lines.push(DATA.columns.map(function (c) { return csvCell(row[c]); }).join(","));
+    });
+    return lines.join("\n");
+  }
+
+  function download(text, suffix) {
+    var blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "share-of-search_" + DATA.market + "_" +
+                    DATA.latest.month + (suffix ? "_" + suffix : "") + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  function bindDownloads() {
+    document.getElementById("dlView").addEventListener("click", function () {
+      download(currentViewCsv(), state.smoothing === "raw" ? "raw" : state.smoothing + "mo");
+    });
+    document.getElementById("dlFull").addEventListener("click", function () {
+      download(fullDatasetCsv(), "full");
+    });
+  }
+
+  // ---- Methodology --------------------------------------------------------
+
+  function renderMethod() {
+    var ambiguous = DATA.ambiguous_brands || [];
+    var ambiguousLine = ambiguous.length
+      ? "<strong style='display:inline'>" + esc(ambiguous.join(", ")) + "</strong> " +
+        (ambiguous.length === 1 ? "is" : "are") +
+        " flagged as ambiguous: the brand name is also a common word, so some of that " +
+        "volume is people searching for something else entirely."
+      : "No brand in this set is flagged as having an ambiguous name.";
+
+    document.getElementById("method").innerHTML =
+      "<p>Share of Search is a brand's organic branded search volume expressed as a " +
+      "percentage of the total branded search volume across a defined competitor set. " +
+      "The idea is Les Binet's, presented at IPA EffWorks Global 2020.</p>" +
+
+      "<h3>How this was measured</h3>" +
+      "<dl>" +
+        "<dt>Metric</dt><dd>Organic branded search volume only. No paid search, no SERP share of voice.</dd>" +
+        "<dt>Data source</dt><dd>" + esc(DATA.data_source) + " (Google Ads monthly search volume, search partners excluded)</dd>" +
+        "<dt>Market</dt><dd>" + esc(DATA.market) + " — location code " + esc(DATA.location_code) +
+          ", language " + esc(DATA.language_code) + "</dd>" +
+        "<dt>Competitor set</dt><dd>" + esc(DATA.brands.map(function (b) { return b.name; }).join(", ")) + "</dd>" +
+        "<dt>Keywords</dt><dd>" + DATA.brands.map(function (b) {
+            return "<em>" + esc(b.name) + "</em>: " + esc(b.keywords.join(", "));
+          }).join("<br>") + "</dd>" +
+        "<dt>Date range</dt><dd>" + esc(DATA.months[0]) + " to " +
+          esc(DATA.months[DATA.months.length - 1]) + " (" + DATA.months.length + " months)</dd>" +
+        "<dt>Smoothing</dt><dd>Trailing averages over " +
+          esc(DATA.smoothing_windows.join(" and ")) + " months. Windows are full — a value " +
+          "appears only once the whole window has data.</dd>" +
+        "<dt>Generated</dt><dd>" + esc(DATA.generated_at) + "</dd>" +
+      "</dl>" +
+
+      "<h3>The denominator</h3>" +
+      "<p>Every percentage here is relative to the competitor set listed above, never to " +
+      "total search volume. Add or remove a brand and every number changes. If the set is " +
+      "missing a real competitor, every figure on this page is overstated.</p>" +
+
+      '<div class="indicator-note">' +
+        "<strong>Indicator, not forecast</strong>" +
+        "<p>Share of Search is a leading indicator <em>correlated with</em> market share. " +
+        "It is not a prediction of market share, and it does not explain why anything moved. " +
+        "Lead times vary by category — roughly three months in fast-cycle categories, up to " +
+        "twelve for considered purchases.</p>" +
+        "<p>The IPA think-tank findings behind this metric are correlations, not causal " +
+        "relationships. Nothing here establishes that a campaign, a price change or a " +
+        "competitor's activity caused a movement.</p>" +
+        "<p>Volumes are Google estimates, rounded and bucketed rather than exact. Because " +
+        "Share of Search is a ratio, consistent estimation bias largely cancels out — but " +
+        "treat the absolute volumes as approximate and read the trend, not the decimal place. " +
+        "Google also revises historical months, so older figures can shift between runs.</p>" +
+        "<p>" + ambiguousLine + "</p>" +
+      "</div>";
+  }
+
+  // ---- Go -----------------------------------------------------------------
+
+  renderHeader();
+  renderStats();
+  renderCommentary();
+  renderTable();
+  renderSmoothToggle();
+  renderRangeToggle();
+  bindViewToggle();
+  bindTheme();
+  bindDownloads();
+  renderMethod();
+  buildChart();
+})();
+</script>
+</body>
+</html>

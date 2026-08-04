@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+.env.local
+
+# The user's real brand set. Only the .example template is tracked.
+config/brands.yaml
+config/*.yaml
+!config/brands.example.yaml
+
+# Data store and generated dashboards.
+# These are ignored by default so nobody accidentally commits a client's
+# competitor set. If you *want* to track results (e.g. for a scheduled job
+# that commits back), delete the two `*` lines below — see the README.
+# The .gitkeep exceptions only work against `dir/*`, not `dir/`: git will not
+# descend into a fully excluded directory to re-include anything.
+data/*
+output/*
+!data/.gitkeep
+!output/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/

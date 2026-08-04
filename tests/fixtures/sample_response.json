@@ -1,0 +1,125 @@
+{
+  "version": "0.1.20240801",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "time": "0.4213 sec.",
+  "cost": 0.075,
+  "tasks_count": 1,
+  "tasks_error": 0,
+  "tasks": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "status_code": 20000,
+      "status_message": "Ok.",
+      "time": "0.3011 sec.",
+      "cost": 0.075,
+      "result_count": 4,
+      "path": ["v3", "keywords_data", "google_ads", "search_volume", "live"],
+      "data": {
+        "api": "keywords_data",
+        "function": "search_volume",
+        "se": "google_ads",
+        "keywords": ["acme", "acme app", "globex", "initech"],
+        "location_code": 2840,
+        "language_code": "en",
+        "search_partners": false,
+        "date_from": "2025-01-01",
+        "date_to": "2025-08-01"
+      },
+      "result": [
+        {
+          "keyword": "acme",
+          "spell": null,
+          "location_code": 2840,
+          "language_code": "en",
+          "search_partners": false,
+          "competition": "LOW",
+          "competition_index": 12,
+          "search_volume": 1200,
+          "low_top_of_page_bid": 0.4,
+          "high_top_of_page_bid": 1.8,
+          "cpc": 0.9,
+          "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": 1300 },
+            { "year": 2025, "month": 7, "search_volume": 1000 },
+            { "year": 2025, "month": 6, "search_volume": 1200 },
+            { "year": 2025, "month": 5, "search_volume": 1400 },
+            { "year": 2025, "month": 4, "search_volume": 1300 },
+            { "year": 2025, "month": 3, "search_volume": 1200 },
+            { "year": 2025, "month": 2, "search_volume": 1100 },
+            { "year": 2025, "month": 1, "search_volume": 1000 }
+          ]
+        },
+        {
+          "keyword": "acme app",
+          "spell": null,
+          "location_code": 2840,
+          "language_code": "en",
+          "search_partners": false,
+          "competition": "LOW",
+          "competition_index": 12,
+          "search_volume": 1200,
+          "low_top_of_page_bid": 0.4,
+          "high_top_of_page_bid": 1.8,
+          "cpc": 0.9,
+          "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": 1300 },
+            { "year": 2025, "month": 7, "search_volume": 1000 },
+            { "year": 2025, "month": 6, "search_volume": 1200 },
+            { "year": 2025, "month": 5, "search_volume": 1400 },
+            { "year": 2025, "month": 4, "search_volume": 1300 },
+            { "year": 2025, "month": 3, "search_volume": 1200 },
+            { "year": 2025, "month": 2, "search_volume": 1100 },
+            { "year": 2025, "month": 1, "search_volume": 1000 }
+          ]
+        },
+        {
+          "keyword": "globex",
+          "spell": null,
+          "location_code": 2840,
+          "language_code": "en",
+          "search_partners": false,
+          "competition": "MEDIUM",
+          "competition_index": 44,
+          "search_volume": 550,
+          "low_top_of_page_bid": 0.6,
+          "high_top_of_page_bid": 2.4,
+          "cpc": 1.2,
+          "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": 800 },
+            { "year": 2025, "month": 7, "search_volume": 600 },
+            { "year": 2025, "month": 6, "search_volume": 500 },
+            { "year": 2025, "month": 5, "search_volume": 300 },
+            { "year": 2025, "month": 4, "search_volume": 400 },
+            { "year": 2025, "month": 3, "search_volume": 700 },
+            { "year": 2025, "month": 2, "search_volume": 600 },
+            { "year": 2025, "month": 1, "search_volume": 500 }
+          ]
+        },
+        {
+          "keyword": "initech",
+          "spell": null,
+          "location_code": 2840,
+          "language_code": "en",
+          "search_partners": false,
+          "competition": "LOW",
+          "competition_index": 8,
+          "search_volume": 300,
+          "low_top_of_page_bid": 0.3,
+          "high_top_of_page_bid": 1.1,
+          "cpc": 0.5,
+          "monthly_searches": [
+            { "year": 2025, "month": 8, "search_volume": null },
+            { "year": 2025, "month": 7, "search_volume": 400 },
+            { "year": 2025, "month": 6, "search_volume": 300 },
+            { "year": 2025, "month": 5, "search_volume": 300 },
+            { "year": 2025, "month": 4, "search_volume": 300 },
+            { "year": 2025, "month": 3, "search_volume": 100 },
+            { "year": 2025, "month": 2, "search_volume": 300 },
+            { "year": 2025, "month": 1, "search_volume": 500 }
+          ]
+        }
+      ]
+    }
+  ]
+}
