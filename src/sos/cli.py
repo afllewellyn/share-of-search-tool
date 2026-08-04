@@ -11,8 +11,10 @@ Four commands:
 from __future__ import annotations
 
 import logging
+import re
 import sys
 import webbrowser
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import List, Optional
@@ -29,6 +31,7 @@ from sos.config import (
     config_from_flags,
     credential_env_var,
     get_credentials,
+    keyword_parity_warnings,
     load_config,
     load_dotenv,
 )
@@ -161,42 +164,103 @@ def init(config_path: Path, force: bool) -> None:
     click.secho("Share of Search — setup", bold=True)
     click.echo("Press Ctrl-C at any point to bail out; nothing is written until the end.\n")
 
-    brand_name = click.prompt("Your brand name").strip()
-    brand_url = click.prompt("Your brand URL", default="", show_default=False).strip()
+    click.secho("Step 1 of 3 — who's in the category", bold=True)
+    brand_name = click.prompt("  Your brand name").strip()
+    brand_url = click.prompt("  Your brand URL", default="", show_default=False).strip()
 
-    click.echo("\nCompetitors, one per line. Blank line when you're done.")
-    click.echo("Be generous — an incomplete set makes every percentage wrong.")
-    competitors: List[str] = []
+    click.echo("\n  Competitors, one per line. Blank line when you're done.")
+    click.echo("  Be generous — an incomplete set makes every percentage wrong.")
+    competitor_names: List[str] = []
     while True:
-        entry = click.prompt(f"  Competitor {len(competitors) + 1}", default="", show_default=False).strip()
+        entry = click.prompt(
+            f"    Competitor {len(competitor_names) + 1}", default="", show_default=False
+        ).strip()
         if not entry:
             break
-        competitors.append(entry)
+        competitor_names.append(entry)
 
-    if not competitors:
+    if not competitor_names:
         raise _fail("At least one competitor is required — share is always relative to a category.")
 
-    click.echo(f"\nMarket. Known shorthands: {', '.join(sorted(COMMON_LOCATIONS))}")
-    market = click.prompt("Market", default="US").strip().upper()
+    click.echo()
+    click.secho("Step 2 of 3 — what each brand is searched as", bold=True)
+    click.echo("  This step decides whether the percentages are fair. A brand tracked on one")
+    click.echo("  keyword, against a competitor tracked on five, will look smaller than it is.")
+    click.echo("  Sub-brands, product lines and common misspellings all belong here.")
+
+    own = _prompt_brand_keywords(brand_name, url=brand_url)
+    competitors = [_prompt_brand_keywords(name) for name in competitor_names]
+
+    click.echo()
+    click.secho("Step 3 of 3 — market", bold=True)
+    click.echo(f"  Known shorthands: {', '.join(sorted(COMMON_LOCATIONS))}")
+    market = click.prompt("  Market", default="US").strip().upper()
     location_code = COMMON_LOCATIONS.get(market)
     if location_code is None:
         location_code = click.prompt(
-            f"No shorthand for '{market}'. DataForSEO location code", type=int
+            f"  No shorthand for '{market}'. DataForSEO location code", type=int
         )
-    language_code = click.prompt("Language code", default="en").strip()
+    language_code = click.prompt("  Language code", default="en").strip()
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.write_text(
-        _render_config_yaml(brand_name, brand_url, competitors, market, location_code, language_code),
+        _render_config_yaml(own, competitors, market, location_code, language_code),
         encoding="utf-8",
     )
 
     click.echo()
     _ok(f"Wrote {config_path}")
-    _info("Each brand starts with its name as its only keyword. Open the file and add")
-    _info("variants ('acme app', 'acme login') to capture more of each brand's demand.")
+    total = len(own.keywords) + sum(len(c.keywords) for c in competitors)
+    _info(f"{total} keywords across {len(competitors) + 1} brands.")
+    for warning in keyword_parity_warnings(
+        {draft.name: draft.keywords for draft in [own, *competitors]}
+    ):
+        _warn(warning)
+    _info("")
+    _info("Add more variants any time — the file is plain YAML and re-running")
+    _info("`sos run` picks them up. Cost is per request, so extra keywords are free.")
     _info("")
     _info("Next:  sos validate    then    sos run")
+
+
+@dataclass
+class _BrandDraft:
+    """One brand as `sos init` collected it, before it becomes YAML."""
+
+    name: str
+    keywords: List[str]
+    ambiguous: bool
+    url: str = ""
+
+
+def _split_keywords(raw: str) -> List[str]:
+    """Split a comma- or newline-separated answer into clean keywords."""
+    return [part.strip().lower() for part in re.split(r"[,\n]", raw) if part.strip()]
+
+
+def _prompt_brand_keywords(name: str, url: str = "") -> _BrandDraft:
+    """Collect the search variants for one brand.
+
+    The brand's own name is seeded automatically and shown, so the prompt asks
+    only for what it doesn't already have. Enter accepts the seed alone, which
+    keeps the flow as fast as it used to be for anyone who doesn't need more.
+    """
+    seed = name.strip().lower()
+    click.echo()
+    click.secho(f"  {name}", bold=True)
+    click.echo(f'    Already counting: "{seed}"')
+    click.echo('    Sub-brands, products, variants — comma-separated. Enter to skip.')
+    extra = click.prompt("    Also count", default="", show_default=False)
+
+    keywords: List[str] = []
+    for keyword in [seed, *_split_keywords(extra)]:
+        if keyword and keyword not in keywords:
+            keywords.append(keyword)
+
+    ambiguous = click.confirm(
+        f'    Is "{name}" also an everyday word (Apple, Emma, Orange)?', default=False
+    )
+    return _BrandDraft(name=name, keywords=keywords, ambiguous=ambiguous, url=url)
 
 
 def _yaml_scalar(value: str) -> str:
@@ -215,9 +279,8 @@ def _yaml_scalar(value: str) -> str:
 
 
 def _render_config_yaml(
-    brand: str,
-    url: str,
-    competitors: List[str],
+    own: "_BrandDraft",
+    competitors: List["_BrandDraft"],
     market: str,
     location_code: int,
     language_code: str,
@@ -229,6 +292,11 @@ def _render_config_yaml(
     """
     lines = [
         "# Generated by `sos init`. Edit freely — this file is gitignored.",
+        "#",
+        "# Adding keywords costs nothing: DataForSEO bills per request, not per",
+        "# keyword. Give every brand the variants people actually search, and keep",
+        "# the depth even across brands — a brand tracked on one keyword against a",
+        "# competitor tracked on five will look smaller than it really is.",
         "",
         "market:",
         f"  name: {_yaml_scalar(market)}",
@@ -239,26 +307,31 @@ def _render_config_yaml(
         "smoothing_windows: [3, 12]",
         "",
         "own_brand:",
-        f"  name: {_yaml_scalar(brand)}",
     ]
-    if url:
-        lines.append(f"  url: {_yaml_scalar(url)}")
+    lines += _render_brand(own, indent="  ", first=False)
     lines += [
-        "  keywords:",
-        f"    - {_yaml_scalar(brand.lower())}",
-        "  ambiguous: false",
         "",
         "# Set `ambiguous: true` for any brand whose name is also a common word —",
         "# its volume will include searches that have nothing to do with the brand.",
         "competitors:",
     ]
     for competitor in competitors:
-        lines.append(f"  - name: {_yaml_scalar(competitor)}")
-        lines.append("    keywords:")
-        lines.append(f"      - {_yaml_scalar(competitor.lower())}")
-        lines.append("    ambiguous: false")
+        lines += _render_brand(competitor, indent="    ", first=True)
 
     return "\n".join(lines) + "\n"
+
+
+def _render_brand(draft: "_BrandDraft", indent: str, first: bool) -> List[str]:
+    """Render one brand block. ``first`` marks it as a YAML list item."""
+    head = indent[:-2] + "- " if first else indent
+    lines = [f"{head}name: {_yaml_scalar(draft.name)}"]
+    if draft.url:
+        lines.append(f"{indent}url: {_yaml_scalar(draft.url)}")
+    lines.append(f"{indent}keywords:")
+    for keyword in draft.keywords:
+        lines.append(f"{indent}  - {_yaml_scalar(keyword)}")
+    lines.append(f"{indent}ambiguous: {'true' if draft.ambiguous else 'false'}")
+    return lines
 
 
 # --------------------------------------------------------------------------
@@ -291,6 +364,8 @@ def validate(config_path: Optional[Path]) -> None:
                 f"Flagged as ambiguous: {', '.join(config.ambiguous_brands)}. "
                 "Their volumes will include unrelated searches."
             )
+        for warning in keyword_parity_warnings({b.name: b.keywords for b in config.brands}):
+            _warn(warning)
     except ConfigError as exc:
         click.secho(f"  Config problem:\n{_indent(str(exc))}", fg="red")
         problems += 1
@@ -334,10 +409,14 @@ def _indent(text: str, prefix: str = "    ") -> str:
 @click.option("--competitors", default=None, help='Ad-hoc mode: comma-separated, e.g. "Globex,Initech".')
 @click.option("--market", default="US", show_default=True, help="Market shorthand, e.g. US, UK, DE.")
 @click.option("--backfill", is_flag=True, help=f"Pull the full available history (asks for {BACKFILL_MONTHS} months).")
+@click.option("--months", "months", type=int, default=None, metavar="N",
+              help="Pull the trailing N months. Costs the same as any other window.")
 @click.option("--from", "date_from", default=None, metavar="YYYY-MM", help="Explicit range start.")
 @click.option("--to", "date_to", default=None, metavar="YYYY-MM", help="Explicit range end (capped at the last complete month).")
 @click.option("--refresh-last", type=int, default=None, metavar="N",
               help="Re-pull the trailing N months, absorbing Google's revisions to recent history.")
+@click.option("--no-prompt", is_flag=True,
+              help="Never ask anything interactively. Use the defaults and carry on.")
 @click.option("--data-dir", type=click.Path(path_type=Path), default=Path("data"), show_default=True,
               help="Where the CSV store lives.")
 @click.option("--dry-run", is_flag=True, help="Show what would be requested and what it would cost. Makes no call.")
@@ -348,9 +427,11 @@ def run(
     competitors: Optional[str],
     market: str,
     backfill: bool,
+    months: Optional[int],
     date_from: Optional[str],
     date_to: Optional[str],
     refresh_last: Optional[int],
+    no_prompt: bool,
     data_dir: Path,
     dry_run: bool,
 ) -> None:
@@ -362,11 +443,13 @@ def run(
     Ad-hoc, no config file:
       sos run --brand Acme --competitors "Globex,Initech"
 
-    An empty store backfills automatically. On later runs the trailing three
-    months are re-pulled, because Google revises recent history.
+    On a first pull you're asked how far back to reach. On later runs the
+    trailing twelve months are re-pulled automatically, because Google revises
+    recent history.
 
-    Cost is per request, not per keyword — every brand goes out in one call,
-    so a run is about $0.075 regardless of how many brands you track.
+    Cost is per request, not per keyword or per month — every brand goes out in
+    one call, so a run is about $0.075 whether you track three brands or thirty
+    and whether you ask for one year or four.
     """
     from sos import store as store_module
     from sos import transform
@@ -375,7 +458,8 @@ def run(
 
     empty_store = store_module.is_empty(data_dir)
     start, end, reason = _resolve_range(
-        data_dir, config, empty_store, backfill, date_from, date_to, refresh_last
+        data_dir, config, empty_store, backfill, months, date_from, date_to,
+        refresh_last, no_prompt,
     )
 
     click.echo()
@@ -524,11 +608,18 @@ def _resolve_range(
     config: Config,
     empty_store: bool,
     backfill: bool,
+    months: Optional[int],
     date_from: Optional[str],
     date_to: Optional[str],
     refresh_last: Optional[int],
+    no_prompt: bool = False,
 ) -> "tuple[date, date, str]":
-    """Work out which months to request, and say why."""
+    """Work out which months to request, and say why.
+
+    Explicit flags always win. The interactive prompt only appears on the path
+    that would otherwise backfill silently — a first run, or a market with no
+    data yet — so routine refreshes stay quiet.
+    """
     from sos import store as store_module
 
     # Google Ads never has the current month; asking for it just returns a hole.
@@ -543,21 +634,83 @@ def _resolve_range(
             raise _fail("--refresh-last must be at least 1.")
         return shift_months(end, -(refresh_last - 1)), end, f"refreshing the last {refresh_last} months"
 
+    if months is not None:
+        if months < 1:
+            raise _fail("--months must be at least 1.")
+        return shift_months(end, -(months - 1)), end, f"last {months} months"
+
     if backfill:
         return shift_months(end, -(BACKFILL_MONTHS - 1)), end, "backfill"
 
-    if empty_store:
+    first_pull = empty_store or not store_module.existing_months(data_dir, config.market.name)
+    if first_pull:
+        why = "empty store" if empty_store else "no data for this market"
+        if _can_prompt(no_prompt):
+            return _prompt_timeframe(end)
         click.echo()
         _info("No data stored yet — backfilling the full available history.")
-        return shift_months(end, -(BACKFILL_MONTHS - 1)), end, "auto-backfill, empty store"
+        return shift_months(end, -(BACKFILL_MONTHS - 1)), end, f"auto-backfill, {why}"
 
     stored = store_module.existing_months(data_dir, config.market.name)
-    if not stored:
-        return shift_months(end, -(BACKFILL_MONTHS - 1)), end, "auto-backfill, no data for this market"
-
     latest = stored[-1].date()
     start = shift_months(latest, -(DEFAULT_REFRESH_MONTHS - 1))
     return start, end, f"new months plus a {DEFAULT_REFRESH_MONTHS}-month refresh"
+
+
+def _can_prompt(no_prompt: bool) -> bool:
+    """Only ask when there's a human there to answer.
+
+    Without the TTY check a piped or CI invocation would block forever on a
+    prompt nobody can see.
+    """
+    return not no_prompt and sys.stdin.isatty()
+
+
+#: Offered before a first pull. Full history leads because it costs the same.
+TIMEFRAME_CHOICES = [
+    (BACKFILL_MONTHS, f"Full history — asks for {BACKFILL_MONTHS} months"),
+    (24, "Last 24 months — two years"),
+    (12, "Last 12 months — one year"),
+]
+
+
+def _prompt_timeframe(end: date) -> "tuple[date, date, str]":
+    """Ask how far back to reach on a first pull.
+
+    Worth stating in the prompt that a wider window is free: the natural
+    assumption is that asking for four years costs four times what one year
+    does, and acting on that assumption throws away history for no saving.
+    """
+    click.echo()
+    click.secho("  Time frame", bold=True)
+    click.echo("  Billing is per request, not per month — every option below costs the same")
+    click.echo("  ~$0.075. More history makes the trend and the 12-month average far more")
+    click.echo("  useful, so take the full run unless you have a reason not to.")
+    click.echo()
+    for number, (_, label) in enumerate(TIMEFRAME_CHOICES, start=1):
+        click.echo(f"    {number}) {label}" + ("  [default]" if number == 1 else ""))
+    custom = len(TIMEFRAME_CHOICES) + 1
+    click.echo(f"    {custom}) Custom range")
+    click.echo()
+
+    choice = click.prompt(
+        "  Choose",
+        default="1",
+        show_default=False,
+        type=click.Choice([str(n) for n in range(1, custom + 1)]),
+    )
+
+    if int(choice) == custom:
+        start = _parse_month(click.prompt("  Start month (YYYY-MM)"), "start month")
+        raw_end = click.prompt("  End month (YYYY-MM)", default=f"{end:%Y-%m}")
+        chosen_end = min(_parse_month(raw_end, "end month"), end)
+        if start > chosen_end:
+            raise _fail(f"Start month {start:%Y-%m} is after end month {chosen_end:%Y-%m}.")
+        return start, chosen_end, "custom range"
+
+    window = TIMEFRAME_CHOICES[int(choice) - 1][0]
+    reason = "full history" if window == BACKFILL_MONTHS else f"last {window} months"
+    return shift_months(end, -(window - 1)), end, reason
 
 
 def _print_summary(frame, config: Config) -> None:

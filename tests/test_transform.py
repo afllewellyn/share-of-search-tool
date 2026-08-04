@@ -33,6 +33,19 @@ def _rows(keyword: str, volumes: list, start_month: int = 1, year: int = 2025) -
     ]
 
 
+def _spanning_rows(keyword: str, volumes: list, start_year: int = 2024) -> list:
+    """Like :func:`_rows`, but rolls over into the next year past December."""
+    return [
+        {
+            "keyword": keyword,
+            "year": start_year + i // 12,
+            "month": i % 12 + 1,
+            "search_volume": v,
+        }
+        for i, v in enumerate(volumes)
+    ]
+
+
 def _config(*brands: Brand) -> Config:
     return Config(
         market=Market(name="US", location_code=2840, language_code="en"),
@@ -387,6 +400,30 @@ def test_rolling_window_stays_null_until_it_fills():
 
     acme = rolled[rolled["brand"] == "Acme"].sort_values("date")
     assert list(acme["sos_pct_3mo"].isna()) == [True, True, False, False]
+
+
+@pytest.mark.parametrize("window", [3, 6, 12])
+def test_each_window_starts_at_exactly_its_own_length(window):
+    """A 12-month average legitimately begins nine months after a 3-month one.
+
+    That difference is what makes a shorter smoothing window cover more of the
+    chart, and it reads as a bug until you know it. The alternative — averaging
+    four months and calling it a twelve-month average — is the actual bug, so
+    this pins the behaviour rather than softening it.
+    """
+    config = _config(
+        Brand(name="Acme", keywords=["acme"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    volumes = list(range(100, 100 + 24))
+    frame = rows_to_frame(_spanning_rows("acme", volumes) + _spanning_rows("globex", volumes))
+    rolled = add_rolling_averages(compute_shares(aggregate_to_brands(frame, config)), [window])
+
+    acme = rolled[rolled["brand"] == "Acme"].sort_values("date").reset_index(drop=True)
+    first_value = acme[f"sos_pct_{window}mo"].first_valid_index()
+
+    assert first_value == window - 1, f"a {window}-month average should start at month {window}"
+    assert acme[f"sos_pct_{window}mo"].iloc[: window - 1].isna().all()
 
 
 def test_rolling_average_is_the_trailing_mean():

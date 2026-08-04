@@ -194,6 +194,8 @@
 
   footer { margin-top: 28px; font-size: 12.5px; color: var(--text-muted); text-align: center; }
   a { color: inherit; }
+  footer .credit { color: var(--text-secondary); text-decoration: underline; text-underline-offset: 2px; }
+  footer .credit:hover { color: var(--text-primary); }
 </style>
 </head>
 <body>
@@ -227,6 +229,10 @@
       <div class="control-group">
         <span>Smoothing</span>
         <div class="segmented" id="smoothToggle" role="group" aria-label="Smoothing window"></div>
+      </div>
+      <div class="control-group" id="rangeGroup" hidden>
+        <span>Range</span>
+        <div class="segmented" id="rangeToggle" role="group" aria-label="Date range"></div>
       </div>
     </div>
     <div class="chart-box"><canvas id="chart"></canvas></div>
@@ -282,7 +288,8 @@ const DATA = __SOS_PAYLOAD__;
   "use strict";
 
   var SERIES_SLOTS = 8;
-  var state = { view: "lines", smoothing: "raw", chart: null };
+  var REPO_URL = "https://github.com/afllewellyn/share-of-search-tool";
+  var state = { view: "lines", smoothing: "raw", range: "all", chart: null };
 
   function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -310,9 +317,18 @@ const DATA = __SOS_PAYLOAD__;
       DATA.brands.map(function (b) { return b.name; }).join(" · ") +
       "  |  " + DATA.market +
       "  |  " + monthLabel(DATA.months[0]) + " – " + monthLabel(DATA.months[DATA.months.length - 1]);
-    document.getElementById("footer").textContent =
-      "Generated " + DATA.generated_at + " · organic branded search volume via " +
-      DATA.data_source + " · methodology per Les Binet, IPA EffWorks Global 2020";
+    // Built as nodes rather than innerHTML so nothing from DATA can inject
+    // markup into a file that gets emailed around. The Les Binet credit lives
+    // in the methodology section, which is where a reader looking for the
+    // source of the metric will actually go.
+    var footer = document.getElementById("footer");
+    footer.textContent = "Generated " + DATA.generated_at +
+      " · organic branded search volume via " + DATA.data_source + " · Developed by ";
+    var link = document.createElement("a");
+    link.href = REPO_URL;
+    link.textContent = "Andrew Llewellyn";
+    link.className = "credit";
+    footer.appendChild(link);
   }
 
   function renderStats() {
@@ -387,6 +403,57 @@ const DATA = __SOS_PAYLOAD__;
     return DATA.series[state.smoothing] || DATA.series.raw;
   }
 
+  // A trailing N-month average has no value until N months exist, so the 12-month
+  // view legitimately begins nine months later than the 3-month one. Plotting that
+  // warm-up as empty space reads as "the category had no search yet", which is the
+  // opposite of what it means — so trim it off the axis and explain the offset in
+  // the note instead of leaving a void for the reader to interpret.
+  function firstPopulatedIndex(values) {
+    for (var i = 0; i < DATA.months.length; i++) {
+      for (var b = 0; b < DATA.brands.length; b++) {
+        var v = values[DATA.brands[b].name][i];
+        if (v !== null && v !== undefined) return i;
+      }
+    }
+    return 0;
+  }
+
+  // Trimming is view-only — DATA still holds every month, so both CSV exports
+  // and the table are unaffected by whatever is on screen.
+  function visibleWindow() {
+    var values = activeSeries();
+    var warmup = firstPopulatedIndex(values);
+    var start = warmup;
+    if (state.range !== "all") {
+      start = Math.max(start, DATA.months.length - Number(state.range));
+    }
+    return { start: start, warmup: warmup, values: values };
+  }
+
+  function chartNote(win) {
+    var parts = [state.view === "composition"
+      ? "Every month sums to 100% of the tracked category. Band thickness is each brand's share."
+      : (state.smoothing === "raw"
+          ? "Unsmoothed monthly share. Single months are noisy — seasonality alone moves these lines."
+          : state.smoothing + "-month trailing average.")];
+
+    // Only explain the warm-up when it is what sets the left edge. With a
+    // narrower range selected the range is the reason the chart starts where
+    // it does, and both sentences at once contradict each other.
+    if (state.smoothing !== "raw" && win.warmup > 0 && win.start === win.warmup) {
+      parts.push(
+        "Begins " + monthLabel(DATA.months[win.warmup]) + ", not " + monthLabel(DATA.months[0]) +
+        ": a full " + state.smoothing + "-month window is required before an average is " +
+        "meaningful, so the first " + win.warmup + " month" + (win.warmup === 1 ? "" : "s") +
+        " have none. This is why a shorter window covers more of the chart than a longer one."
+      );
+    }
+    if (state.range !== "all") {
+      parts.push("Showing the last " + state.range + " months. Every stored month is still in both CSV downloads.");
+    }
+    return parts.join(" ");
+  }
+
   // Past four series the labels collide with each other, so the legend
   // carries identity alone from there on.
   var DIRECT_LABEL_LIMIT = 4;
@@ -446,7 +513,9 @@ const DATA = __SOS_PAYLOAD__;
     if (state.chart) state.chart.destroy();
 
     var composition = state.view === "composition";
-    var values = activeSeries();
+    var win = visibleWindow();
+    var values = win.values;
+    var months = DATA.months.slice(win.start);
     var surface = cssVar("--surface-1");
     // Only reserve gutter space when something is actually going to be
     // written into it, or a five-brand chart ends up with a dead margin.
@@ -456,7 +525,7 @@ const DATA = __SOS_PAYLOAD__;
       var color = seriesColor(i);
       return {
         label: brand.name,
-        data: values[brand.name],
+        data: values[brand.name].slice(win.start),
         // In composition view a 2px surface-coloured border becomes the gap
         // between bands, so adjacent fills never touch.
         borderColor: composition ? surface : color,
@@ -473,7 +542,7 @@ const DATA = __SOS_PAYLOAD__;
 
     state.chart = new Chart(canvas.getContext("2d"), {
       type: "line",
-      data: { labels: DATA.months.map(monthLabel), datasets: datasets },
+      data: { labels: months.map(monthLabel), datasets: datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
@@ -507,13 +576,23 @@ const DATA = __SOS_PAYLOAD__;
               boxWidth: 8,
               boxHeight: 8,
               padding: 20,
+              // Chart.js draws each label with `legendItem.fontColor`, not with
+              // `labels.color` — that option is only ever read by the default
+              // generateLabels, which we replace here to keep colours pinned to
+              // config order. Omitting fontColor leaves ctx.fillStyle unset, so
+              // the text keeps whatever fill was last used (black) and stops
+              // responding to the theme entirely.
               generateLabels: function (chart) {
+                var labelColor = cssVar("--text-secondary");
+                var mutedColor = cssVar("--text-muted");
                 return chart.data.datasets.map(function (dataset, i) {
+                  var visible = chart.isDatasetVisible(i);
                   return {
                     text: dataset.label,
                     fillStyle: seriesColor(i),
                     strokeStyle: seriesColor(i),
-                    hidden: !chart.isDatasetVisible(i),
+                    fontColor: visible ? labelColor : mutedColor,
+                    hidden: !visible,
                     datasetIndex: i
                   };
                 });
@@ -541,11 +620,7 @@ const DATA = __SOS_PAYLOAD__;
       plugins: composition ? [crosshair] : [directLabels, crosshair]
     });
 
-    document.getElementById("chartNote").textContent = composition
-      ? "Every month sums to 100% of the tracked category. Band thickness is each brand's share."
-      : (state.smoothing === "raw"
-          ? "Unsmoothed monthly share. Single months are noisy — seasonality alone moves these lines."
-          : state.smoothing + "-month trailing average. Values appear only once the full window has data.");
+    document.getElementById("chartNote").textContent = chartNote(win);
   }
 
   // ---- Controls -----------------------------------------------------------
@@ -566,6 +641,30 @@ const DATA = __SOS_PAYLOAD__;
       if (!key) return;
       state.smoothing = key;
       syncPressed(container, "data-smoothing", key);
+      buildChart();
+    });
+  }
+
+  // Only offer windows the data can actually fill, and only when there is
+  // something to narrow — a 30-month store gets 12 and 24, a 9-month one gets
+  // no control at all rather than a row of buttons that all show the same thing.
+  var RANGE_OPTIONS = [12, 24, 36];
+
+  function renderRangeToggle() {
+    var available = RANGE_OPTIONS.filter(function (n) { return n < DATA.months.length; });
+    if (!available.length) return;
+
+    document.getElementById("rangeGroup").hidden = false;
+    var container = document.getElementById("rangeToggle");
+    container.innerHTML = available.map(function (n) {
+      return '<button type="button" data-range="' + n + '" aria-pressed="false">' + n + " mo</button>";
+    }).join("") + '<button type="button" data-range="all" aria-pressed="true">All</button>';
+
+    container.addEventListener("click", function (event) {
+      var key = event.target.getAttribute && event.target.getAttribute("data-range");
+      if (!key) return;
+      state.range = key;
+      syncPressed(container, "data-range", key);
       buildChart();
     });
   }
@@ -741,6 +840,7 @@ const DATA = __SOS_PAYLOAD__;
   renderCommentary();
   renderTable();
   renderSmoothToggle();
+  renderRangeToggle();
   bindViewToggle();
   bindTheme();
   bindDownloads();

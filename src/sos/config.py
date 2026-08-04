@@ -114,6 +114,41 @@ class Config:
         return [b.name for b in self.brands if b.ambiguous]
 
 
+#: A brand needs this many times fewer keywords than the best-covered brand
+#: before the imbalance is worth mentioning. Two-versus-one is ordinary; a
+#: threefold gap usually means someone stopped typing.
+KEYWORD_PARITY_RATIO = 3
+
+
+def keyword_parity_warnings(keywords_by_brand: Dict[str, List[str]]) -> List[str]:
+    """Flag brands covered by far fewer keywords than the best-covered one.
+
+    Share is a ratio between brands, so keyword depth has to be comparable
+    across them. A brand tracked on its name alone, competing against one
+    tracked on its name plus five products, will show a smaller share than it
+    actually has — and nothing else in the output reveals why. This is advice,
+    never an error: plenty of brands genuinely have one search term.
+    """
+    counts = {name: len(set(kws)) for name, kws in keywords_by_brand.items() if kws}
+    if len(counts) < 2:
+        return []
+
+    best_name, best = max(counts.items(), key=lambda item: item[1])
+    thin = sorted(
+        name for name, count in counts.items() if count * KEYWORD_PARITY_RATIO <= best
+    )
+    if not thin:
+        return []
+
+    return [
+        f"Uneven keyword coverage: {', '.join(thin)} "
+        f"{'is' if len(thin) == 1 else 'are'} tracked on far fewer keywords than "
+        f"{best_name} ({best}). Share is a ratio between brands, so a thinly covered "
+        "brand looks smaller than it is. Add their sub-brands and product names — "
+        "extra keywords cost nothing, since billing is per request."
+    ]
+
+
 # --------------------------------------------------------------------------
 # Loading
 # --------------------------------------------------------------------------

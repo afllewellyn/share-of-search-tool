@@ -12,6 +12,8 @@ No server. No database. No login. `git clone` and go.
 
 ![The generated dashboard](docs/dashboard.png)
 
+*Illustrative brand set and synthetic volumes — the layout is exactly what a real run produces.*
+
 ---
 
 ## Install
@@ -52,16 +54,26 @@ For anything you'll run more than once, use a config file so you can give each b
 several keywords:
 
 ```bash
-sos init          # interactive: brand, competitors, market
+sos init          # interactive: brands, their keywords, market
 sos validate      # checks config and credentials, calls nothing, costs nothing
 sos run
 sos dashboard --open
 ```
 
+`sos init` walks three steps: who's in the category, **what each brand is searched as**,
+and the market. The middle step is the one that decides whether the percentages are fair —
+it asks each brand for its sub-brands, product lines and common variants, so a brand isn't
+left being tracked on its name alone while a competitor gets five keywords.
+
+On a first pull `sos run` asks how far back to reach — full history, two years, one year,
+or a custom range. Take the full run unless you have a reason not to: **billing is per
+request, so every option costs the same** ~$0.075, and more history makes the trend and the
+12-month average far more useful. Use `--months N` to skip the question, or `--no-prompt`
+in a script.
+
 Re-run `sos run` whenever you want fresh data. It pulls any new months and re-pulls the
-trailing twelve, because Google revises recent history — and because cost is per request,
-so a wider window is free. Runs are idempotent: the same command twice leaves the store
-byte-identical.
+trailing twelve, because Google revises recent history — and because a wider window is
+free. Runs are idempotent: the same command twice leaves the store byte-identical.
 
 Change your competitor set and the next run reconciles the store to match — brands you
 removed are dropped rather than left behind inflating the category total.
@@ -80,12 +92,14 @@ Useful `sos run` flags:
 | Flag | What it does |
 |---|---|
 | `--brand` / `--competitors` | Ad-hoc mode — no config file needed |
+| `--months N` | Pull the trailing N months |
 | `--backfill` | Pull the full available history |
 | `--from YYYY-MM` / `--to YYYY-MM` | Explicit range |
 | `--refresh-last N` | Re-pull the trailing N months to absorb Google's revisions |
 | `--market US` | Market shorthand (`US`, `UK`, `DE`, …) |
 | `--data-dir PATH` | Where the CSV store lives, default `./data` |
 | `--dry-run` | Show the request plan and cost estimate, call nothing |
+| `--no-prompt` | Never ask anything interactively — for scripts and CI |
 
 `sos <command> --help` has the rest.
 
@@ -119,7 +133,9 @@ competitors:
 ```
 
 **Give each brand the keyword variants people actually search.** A brand tracked on one
-keyword while a competitor is tracked on five will look smaller than it is.
+keyword while a competitor is tracked on five will look smaller than it is — and nothing
+else in the output reveals why. `sos validate` warns when one brand's coverage is more than
+three times another's. Extra keywords cost nothing, since billing is per request.
 
 **Set `ambiguous: true` for brand names that are also ordinary words** — Emma, Apple,
 Orange. Their volume includes searches that have nothing to do with the brand. The flag
@@ -158,6 +174,11 @@ them:
 - **Single months are noisy.** Seasonality alone moves these lines. That's what the
   smoothing toggle is for. The tool also measures each brand's own month-to-month
   volatility and tells you when a move is inside it.
+- **A longer smoothing window covers less of the chart, and that's correct.** Rolling
+  averages are *trailing and full* — a 12-month average needs twelve months before it has
+  a value, so it starts nine months later than the 3-month one. The alternative, averaging
+  four months and labelling it a twelve-month average, would be the real error. The chart
+  trims the empty run-up and says which month each view begins.
 - **Google's volumes are rounded and bucketed.** Absolute numbers are approximate. Share is
   a ratio, so consistent estimation bias largely cancels — read the trend, not the decimal.
 - **Lead times vary by category** — roughly three months in fast-cycle categories, up to

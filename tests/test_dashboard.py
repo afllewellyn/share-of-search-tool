@@ -154,8 +154,73 @@ def test_a_placeholder_in_config_data_is_not_reexpanded(tmp_path, store, sample_
 
 
 # --------------------------------------------------------------------------
+# Theming
+# --------------------------------------------------------------------------
+
+
+def test_legend_labels_carry_their_own_colour(html):
+    """Chart.js draws legend text with `legendItem.fontColor`, and only its
+    default generateLabels populates that from `labels.color`. Ours replaces
+    it, so omitting fontColor leaves ctx.fillStyle unset and the text renders
+    black whatever the theme is."""
+    generate = re.search(r"generateLabels: function \(chart\) \{(.*?)\n\s{14}\}", html, re.S)
+    assert generate, "generateLabels not found — did the legend config move?"
+    assert "fontColor:" in generate.group(1)
+
+
+def test_no_chart_colour_is_left_to_the_library_default(html):
+    """Chart.js falls back to a hardcoded #666, which reads as broken in both
+    themes. Every colour we hand it must come from a CSS variable."""
+    for option in ["--text-secondary", "--text-muted", "--border-strong", "--grid"]:
+        assert 'cssVar("' + option + '")' in html
+
+
+# --------------------------------------------------------------------------
+# Smoothing horizon
+# --------------------------------------------------------------------------
+
+
+def test_the_smoothing_warmup_is_trimmed_rather_than_drawn_empty(html):
+    assert "firstPopulatedIndex" in html
+    assert "visibleWindow" in html
+    # The trim is view-only: the payload keeps every month for the exports.
+    assert "DATA.months.slice(win.start)" in html
+
+
+def test_the_note_explains_why_a_longer_window_covers_less_of_the_chart(html):
+    assert "a full " in html and "-month window is required" in html
+    assert "why a shorter window covers more of the chart than a longer one" in html
+
+
+def test_every_month_survives_the_trim_in_the_payload(store, sample_config):
+    """Trimming happens at draw time; the data behind the CSV must be intact."""
+    payload = build_payload(store, sample_config)
+    assert len(payload["months"]) == 8
+    for values in payload["series"].values():
+        for brand in ["Acme", "Globex", "Initech"]:
+            assert len(values[brand]) == 8
+
+
+# --------------------------------------------------------------------------
 # Content
 # --------------------------------------------------------------------------
+
+
+def test_the_footer_credits_the_author_and_links_to_the_repo(html):
+    assert "Developed by " in html
+    assert "Andrew Llewellyn" in html
+    assert "https://github.com/afllewellyn/share-of-search-tool" in html
+
+
+def test_the_footer_link_is_built_as_a_node_not_interpolated_html(html):
+    """`innerHTML` on a footer carrying DATA values is an injection path."""
+    assert 'document.createElement("a")' in html
+    assert 'link.textContent = "Andrew Llewellyn"' in html
+
+
+def test_the_range_control_exists_and_defaults_to_everything(html):
+    assert 'id="rangeToggle"' in html
+    assert 'data-range="all" aria-pressed="true"' in html
 
 
 def test_the_methodology_credits_the_source_of_the_metric(html):
