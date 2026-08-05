@@ -1,11 +1,12 @@
 """The ``sos`` command line.
 
-Four commands:
+Five commands:
 
 * ``sos init``      — write a config file interactively
 * ``sos run``       — pull volumes and update the store
 * ``sos dashboard`` — build the HTML report from what's stored
 * ``sos validate``  — check config and credentials without calling the API
+* ``sos refresh``   — update the code, pull data, rebuild and open the report
 """
 
 from __future__ import annotations
@@ -17,7 +18,7 @@ import webbrowser
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
-from typing import List, Optional
+from typing import List, NoReturn, Optional
 
 import click
 import yaml
@@ -798,6 +799,202 @@ def dashboard(
 
     if open_browser:
         webbrowser.open(path.resolve().as_uri())
+
+
+# --------------------------------------------------------------------------
+# refresh
+# --------------------------------------------------------------------------
+
+#: Set on the process before it re-executes itself after a code update. Its
+#: presence means "the update already happened this invocation", which bounds
+#: the restart at exactly one — a pull that somehow kept reporting a change
+#: could otherwise loop forever.
+REEXEC_ENV_VAR = "SOS_REFRESH_REEXEC"
+
+
+@main.command()
+@click.option("--config", "config_path", type=click.Path(path_type=Path), default=None,
+              help=f"Config file to use.  [default: {DEFAULT_CONFIG_PATH}]")
+@click.option("--market", default="US", show_default=True, help="Market shorthand, e.g. US, UK, DE.")
+@click.option("--data-dir", type=click.Path(path_type=Path), default=Path("data"), show_default=True,
+              help="Where the CSV store lives.")
+@click.option("--out", type=click.Path(path_type=Path), default=Path("output/share-of-search.html"),
+              show_default=True, help="Where to write the HTML file.")
+@click.option("--no-pull", is_flag=True, help="Skip the code update; just refresh data and rebuild.")
+@click.option("--no-open", is_flag=True, help="Build the report without opening a browser.")
+@click.option("--no-prompt", is_flag=True, help="Never ask anything interactively.")
+@click.pass_context
+def refresh(
+    ctx: click.Context,
+    config_path: Optional[Path],
+    market: str,
+    data_dir: Path,
+    out: Path,
+    no_pull: bool,
+    no_open: bool,
+    no_prompt: bool,
+) -> None:
+    """Update the code, pull fresh data, rebuild the report and open it.
+
+    \b
+    The everyday command:
+      sos refresh
+
+    Equivalent to `git pull && sos run && sos dashboard --open`, except that
+    the code update actually takes effect: if the pull brings anything in, the
+    command restarts itself so the new code does the work.
+
+    For anything specific — an explicit range, ad-hoc brands, a dry run — use
+    `sos run` directly.
+    """
+    if not no_pull:
+        _update_code()
+
+    try:
+        ctx.invoke(
+            run,
+            config_path=config_path,
+            market=market,
+            data_dir=data_dir,
+            no_prompt=no_prompt,
+        )
+    except click.ClickException as exc:
+        # Building the report anyway would hand back something that looks
+        # freshly refreshed while showing the previous run's data — the one
+        # outcome this command must never produce.
+        #
+        # Shown here rather than re-raised so the reassurance lands *after*
+        # the error it's about; click prints an escaping exception last, which
+        # would put the advice above the problem.
+        exc.show()
+        click.echo()
+        _info("Your stored data is unchanged. `sos dashboard --open` still renders "
+              "what's already there.")
+        ctx.exit(exc.exit_code)
+
+    ctx.invoke(
+        dashboard,
+        config_path=config_path,
+        market=market,
+        data_dir=data_dir,
+        out=out,
+        open_browser=not no_open,
+    )
+
+
+def _update_code() -> None:
+    """Bring the checkout up to date, and restart if that changed anything."""
+    import os
+
+    if os.environ.get(REEXEC_ENV_VAR):
+        return  # We are the restarted process; the pull already happened.
+
+    root = _source_checkout()
+    if root is None:
+        click.echo()
+        _info("No git checkout to update — skipping straight to the data. (A "
+              "non-editable `pip install .` copies the package, so pulling the "
+              "repository wouldn't change what runs; reinstall to update.)")
+        return
+
+    click.echo()
+    safe, why = _pull_status(root)
+    if not safe:
+        _warn(f"Skipping the code update: {why}.")
+        return
+
+    changed, message = _pull(root)
+    if not changed:
+        _info(message)
+        return
+
+    _ok(message)
+    _info("Restarting so the new code does the work...")
+    _reexec()
+
+
+def _source_checkout() -> Optional[Path]:
+    """The git checkout the *running code* came from, or ``None``.
+
+    Resolved from the package's own location rather than the working
+    directory, which is the safety property that matters: ``sos refresh`` run
+    inside some unrelated project must never ``git pull`` that project.
+
+    ``None`` also covers a non-editable ``pip install .``, where the package
+    sits in site-packages with no checkout above it — pulling the repository
+    there wouldn't change a line of what actually runs.
+    """
+    import sos
+
+    try:
+        root = Path(sos.__file__).resolve().parents[2]  # <root>/src/sos/__init__.py
+    except IndexError:
+        return None
+    if (root / ".git").exists() and (root / "pyproject.toml").exists():
+        return root
+    return None
+
+
+def _git(root: Path, *args: str):
+    """Run one git command against ``root``, capturing rather than raising."""
+    import subprocess
+
+    return subprocess.run(
+        ["git", "-C", str(root), *args], capture_output=True, text=True, check=False
+    )
+
+
+def _pull_status(root: Path) -> "tuple[bool, str]":
+    """Whether pulling is safe, and why not when it isn't.
+
+    Uncommitted changes stop the pull outright. Someone part-way through
+    editing the tool should never have a *data* refresh disturb their work.
+    """
+    result = _git(root, "status", "--porcelain")
+    if result.returncode != 0:
+        return False, "git couldn't read the checkout"
+    if result.stdout.strip():
+        return False, "you have uncommitted changes there, so they're being left alone"
+    return True, ""
+
+
+def _pull(root: Path) -> "tuple[bool, str]":
+    """Fast-forward the checkout. Returns ``(changed, message)``.
+
+    ``--ff-only`` so a refresh can never write a merge commit or leave a
+    conflicted tree in somebody's checkout; a diverged branch fails cleanly
+    instead. And a failed pull is *reported*, never raised — being unable to
+    update the code is no reason to skip the data refresh that was asked for.
+    """
+    before = _git(root, "rev-parse", "HEAD").stdout.strip()
+    result = _git(root, "pull", "--ff-only")
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout).strip().splitlines()
+        return False, "couldn't update the code: " + (detail[-1].strip() if detail else "git failed")
+
+    after = _git(root, "rev-parse", "HEAD").stdout.strip()
+    if before and after and before != after:
+        return True, f"Code updated ({before[:7]} to {after[:7]})."
+    return False, "Code already up to date."
+
+
+def _reexec() -> NoReturn:
+    """Restart this command so the code just pulled is the code that runs.
+
+    The process reaching this line was loaded before the pull. ``cli.py``
+    imports some modules at module level and others lazily inside the command
+    bodies, so carrying on would do the work with a *mix* of pre- and
+    post-pull code — harder to trust than being uniformly stale, because you
+    can't tell which half you got.
+
+    ``execvp`` replaces the process image, so nothing after this line runs.
+    """
+    import os
+
+    os.environ[REEXEC_ENV_VAR] = "1"
+    sys.stdout.flush()  # execvp won't flush a block-buffered pipe for us.
+    sys.stderr.flush()
+    os.execvp(sys.argv[0], sys.argv)
 
 
 if __name__ == "__main__":  # pragma: no cover

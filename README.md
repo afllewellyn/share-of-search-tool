@@ -75,6 +75,29 @@ Re-run `sos run` whenever you want fresh data. It pulls any new months and re-pu
 trailing twelve, because Google revises recent history — and because a wider window is
 free. Runs are idempotent: the same command twice leaves the store byte-identical.
 
+Day to day, though, reach for one command instead of three:
+
+```bash
+sos refresh
+```
+
+It updates the tool, pulls fresh data, rebuilds the report and opens it. That last step is
+easy to forget: the dashboard is a *generated file*, so `git pull` on its own changes
+nothing you can see until something rebuilds it.
+
+`refresh` fails safe. It only ever pulls the checkout the running code came from, never
+whatever directory you're standing in. It leaves your uncommitted edits alone rather than
+pulling over them, fast-forwards only, and treats a failed pull as a reason to carry on to
+the data rather than to stop. If the *data* pull fails it stops without rebuilding, because
+a report that looks fresh while showing last week's numbers is worse than no new report.
+
+When the pull does bring in new code, `refresh` restarts itself before doing the work —
+otherwise it would download an update and then run the old copy that was already loaded in
+memory. Two notes on that: the pull step does nothing unless you installed with
+`pip install -e .` (a plain `pip install .` makes a separate copy, so reinstall to update),
+and `--no-pull` skips it entirely. Anything more specific than the everyday case — a date
+range, ad-hoc brands, a dry run — is still `sos run`.
+
 Change your competitor set and the next run reconciles the store to match — brands you
 removed are dropped rather than left behind inflating the category total.
 
@@ -85,6 +108,7 @@ sos init                 Write a config file interactively. Won't overwrite with
 sos validate             Check config and credentials. No API call, no cost.
 sos run                  Pull volumes and update the store.
 sos dashboard            Build the HTML report from stored data. No API call.
+sos refresh              Update the tool, pull data, rebuild and open. The everyday one.
 ```
 
 Useful `sos run` flags:

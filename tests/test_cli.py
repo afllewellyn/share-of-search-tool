@@ -2,19 +2,27 @@
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from datetime import date
+from pathlib import Path
 
 import click
 import pytest
 import yaml
 
+import sos
 from sos.cli import (
     BACKFILL_MONTHS,
+    REEXEC_ENV_VAR,
     _BrandDraft,
+    _pull,
+    _pull_status,
     _render_config_yaml,
     _resolve_range,
+    _source_checkout,
     _split_keywords,
+    _update_code,
     _yaml_scalar,
     last_complete_month,
     shift_months,
@@ -261,3 +269,115 @@ def test_no_month_before_the_last_complete_one_is_ever_requested(tmp_path, sampl
     _, end, _ = _range(tmp_path, sample_config, date_to="2099-01")
 
     assert end == last_complete_month()
+
+
+# --------------------------------------------------------------------------
+# `sos refresh` — the code-update step
+# --------------------------------------------------------------------------
+#
+# These run against real throwaway repositories rather than mocks. What's
+# under test is how git actually behaves — whether a dirty tree blocks a
+# fast-forward, what a missing upstream does — and a mock would only assert
+# our assumptions back at us.
+
+
+def _run_git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True, check=True)
+
+
+def _repo(path: Path) -> Path:
+    """A git repository with one commit, shaped like an install checkout."""
+    path.mkdir(parents=True, exist_ok=True)
+    _run_git(path, "init", "-q")
+    _run_git(path, "config", "user.email", "test@example.invalid")
+    _run_git(path, "config", "user.name", "Test")
+    (path / "pyproject.toml").write_text('[project]\nname = "sos"\n', encoding="utf-8")
+    _run_git(path, "add", "-A")
+    _run_git(path, "commit", "-qm", "first")
+    return path
+
+
+def _clone(origin: Path, into: Path) -> Path:
+    subprocess.run(
+        ["git", "clone", "-q", str(origin), str(into)], capture_output=True, text=True, check=True
+    )
+    return into
+
+
+def test_a_non_editable_install_has_no_checkout_to_update(tmp_path, monkeypatch):
+    """site-packages has no repository above it, so there's nothing to pull."""
+    package = tmp_path / "site-packages" / "sos" / "__init__.py"
+    package.parent.mkdir(parents=True)
+    package.write_text("", encoding="utf-8")
+    monkeypatch.setattr(sos, "__file__", str(package))
+
+    assert _source_checkout() is None
+
+
+def test_the_checkout_is_found_from_the_code_not_the_cwd(tmp_path, monkeypatch):
+    """Resolving from the package is what stops a refresh pulling someone
+    else's project just because that's the directory they happened to be in."""
+    root = _repo(tmp_path / "checkout")
+    package = root / "src" / "sos" / "__init__.py"
+    package.parent.mkdir(parents=True)
+    package.write_text("", encoding="utf-8")
+    monkeypatch.setattr(sos, "__file__", str(package))
+    monkeypatch.chdir(tmp_path)
+
+    assert _source_checkout() == root.resolve()
+
+
+def test_uncommitted_changes_stop_the_update(tmp_path):
+    root = _repo(tmp_path / "repo")
+    (root / "pyproject.toml").write_text("edited by hand", encoding="utf-8")
+
+    safe, why = _pull_status(root)
+
+    assert safe is False
+    assert "uncommitted" in why
+
+
+def test_a_clean_checkout_is_safe_to_update(tmp_path):
+    safe, why = _pull_status(_repo(tmp_path / "repo"))
+
+    assert (safe, why) == (True, "")
+
+
+def test_no_change_is_reported_when_already_current(tmp_path):
+    clone = _clone(_repo(tmp_path / "origin"), tmp_path / "clone")
+
+    changed, message = _pull(clone)
+
+    assert changed is False
+    assert "up to date" in message
+
+
+def test_a_moved_upstream_reports_a_change_and_lands_the_files(tmp_path):
+    origin = _repo(tmp_path / "origin")
+    clone = _clone(origin, tmp_path / "clone")
+
+    (origin / "new.txt").write_text("something new", encoding="utf-8")
+    _run_git(origin, "add", "-A")
+    _run_git(origin, "commit", "-qm", "second")
+
+    changed, message = _pull(clone)
+
+    assert changed is True
+    assert "updated" in message.lower()
+    assert (clone / "new.txt").read_text(encoding="utf-8") == "something new"
+
+
+def test_a_failed_update_is_reported_rather_than_raised(tmp_path):
+    """Offline, or no upstream configured: the data refresh must still go ahead."""
+    changed, message = _pull(_repo(tmp_path / "repo"))   # no remote at all
+
+    assert changed is False
+    assert "couldn't update the code" in message
+
+
+def test_the_restart_guard_stops_a_second_update(monkeypatch):
+    """One restart, never two — the guard is what bounds the recursion."""
+    monkeypatch.setenv(REEXEC_ENV_VAR, "1")
+    monkeypatch.setattr("sos.cli._source_checkout", _unreachable)
+
+    _update_code()   # must return without looking for a checkout at all
