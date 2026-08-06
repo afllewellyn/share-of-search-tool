@@ -8,21 +8,20 @@ define, from monthly search volume.
 **Last-click attribution only sees demand you captured, never demand you created.**
 
 Someone searches your brand name, clicks a paid ad, converts. Paid search takes the credit.
-But the reason they typed your name in the first place was something else — a campaign, a
-mention, a recommendation, six months of brand work. In the attribution model that work
-scores zero. So it's the first budget cut and the hardest to defend.
+But something made them type your name — a campaign, a mention, six months of brand work.
+That scores zero in the model, so it's the first budget cut and the hardest to defend.
 
-The tools built to measure it are enterprise SaaS: brand trackers, panel-based market
-share, marketing mix modelling. Enterprise pricing, quarterly cadence, onboarding measured
-in weeks. Reasonable for a global brand. Out of reach for most agency–client relationships,
-and heavy for a question as plain as "is demand moving?"
+The tools that do measure it are enterprise SaaS: brand trackers, panel-based market share,
+marketing mix modelling. Enterprise pricing, quarterly data, onboarding in weeks. Fine for
+a global brand. Out of reach for most agency–client work, and heavy for a question as plain
+as "is demand moving?"
 
-So the quarterly review falls back on impressions, reach and engagement — none of which a
-CFO accepts as evidence that anything changed.
+So the quarterly review falls back on impressions, reach and engagement, which no CFO
+accepts as evidence that anything changed.
 
 ## What Share of Search measures
 
-Branded search is someone typing your name on purpose. It's a signal of demand, not a
+Branded search is someone typing your name on purpose. That's a signal of demand, not a
 record of a conversion.
 
 Share of Search is your brand's slice of all branded search in a category you define:
@@ -33,15 +32,14 @@ Share of Search is your brand's slice of all branded search in a category you de
    total monthly volume across your set of brands
 ```
 
-Les Binet showed that this correlates with market share and tends to **lead** it — by
-around three months in fast-moving categories, up to twelve for considered purchases. See
+Les Binet showed that this correlates with market share and tends to **lead** it — by about
+three months in fast-moving categories, up to twelve for considered purchases. See
 [Share of Search as a Predictive Measure](https://www.youtube.com/watch?v=x1zMufAs3l0),
 IPA EffWorks Global 2020.
 
-Two things it is not. It isn't a prediction of market share, and it doesn't explain
-anything on its own. It's an early signal, available monthly, from data you pull yourself.
-[How to read the output](#how-to-read-the-output) is the honest list of ways it can mislead
-you, and it's worth reading before you quote a number.
+It is not a prediction of market share, and it explains nothing on its own. It's an early
+signal you can pull monthly. Read [How to read the output](#how-to-read-the-output) before
+you quote a number — it lists the ways this can mislead you.
 
 ## What you'd use it for
 
@@ -49,10 +47,9 @@ you, and it's worth reading before you quote a number.
   is demand created, and it moves before revenue does.
 - **Defend or grow a brand budget** with a number rather than an assertion.
 - **Read a campaign early** — weeks after it ends, not two quarters later.
-- **See what a competitor's move actually did.** Did they take your demand, or grow the
-  category? Share and category total answer different questions.
-- **Bring something to a QBR** that isn't impressions, and that the client can check
-  themselves.
+- **See what a competitor's move did.** Did they take your demand, or grow the category?
+  Share and category total answer different questions.
+- **Bring something to a QBR** that isn't impressions, and that the client can check.
 
 ## What this repo is
 
@@ -82,31 +79,31 @@ pip install -e .
 ```
 
 You need a [DataForSEO](https://dataforseo.com/) account. Their Keywords Data API is
-pay-as-you-go. Your whole brand set goes out in a **single request**, however many brands
-and months you ask for.
+pay-as-you-go, and your whole brand set goes out in a **single request**, however many
+brands and months you ask for.
 
 ```bash
 export DATAFORSEO_LOGIN='your-login'         # the email you registered with
 export DATAFORSEO_PASSWORD='your-password'   # the API password from your dashboard
 ```
 
-Or copy `.env.example` to `.env` and fill it in — `.env` is gitignored and loaded
+Or copy `.env.example` to `.env` and fill it in. `.env` is gitignored and loaded
 automatically.
 
 ## Quickstart
 
-The 30-second version needs no config file at all:
+The 30-second version needs no config file:
 
 ```bash
 sos run --brand Anthropic --competitors "OpenAI,Perplexity,Mistral"
 sos dashboard --open
 ```
 
-That backfills the full available history (about four years), writes
-`data/sos_monthly.csv`, and opens the dashboard.
+That backfills the full history (about four years), writes `data/sos_monthly.csv`, and
+opens the dashboard.
 
-For anything you'll run more than once, use a config file so you can give each brand
-several keywords:
+For anything you'll run more than once, use a config file so each brand can have several
+keywords:
 
 ```bash
 sos init          # interactive: brands, their keywords, market
@@ -117,18 +114,17 @@ sos dashboard --open
 
 `sos init` walks three steps: who's in the category, **what each brand is searched as**,
 and the market. The middle step decides whether the percentages are fair. It asks each
-brand for its sub-brands, product lines and common variants, so one brand isn't tracked on
-its name alone while a competitor gets five keywords.
+brand for its sub-brands, product lines and variants, so one brand isn't tracked on its
+name alone while a competitor gets five keywords.
 
 On a first pull, `sos run` asks how far back to reach — full history, two years, one year,
-or a custom range. Take the full run unless you have a reason not to. It's the same single
-request either way, and more history makes the trend and the 12-month average far more
-useful. Use `--months N` to skip the question, or `--no-prompt` in a script.
+or a custom range. Take the full history unless you have a reason not to: it's the same
+single request either way, and the 12-month average needs the depth. `--months N` skips the
+question, `--no-prompt` skips it in a script.
 
-Re-run `sos run` whenever you want fresh data. It pulls any new months and re-pulls the
-trailing twelve, because Google revises recent history and because widening the window
-doesn't add a request. Runs are idempotent: the same command twice leaves the store
-byte-identical.
+Re-run `sos run` for fresh data. It pulls new months and re-pulls the trailing twelve,
+because Google revises recent history and a wider window costs no extra request. Runs are
+idempotent — the same command twice leaves the store byte-identical.
 
 Change your competitor set and the next run reconciles the store to match. Brands you
 removed are dropped rather than left behind inflating the category total.
@@ -142,8 +138,8 @@ sos refresh
 ```
 
 It updates the tool, pulls fresh data, rebuilds the report and opens it. That last step is
-easy to forget: the dashboard is a *generated file*, so `git pull` alone changes nothing
-you can see until something rebuilds it.
+easy to forget — the dashboard is a generated file, so `git pull` alone changes nothing you
+can see.
 
 `refresh` fails safe:
 
@@ -151,14 +147,15 @@ you can see until something rebuilds it.
   standing in.
 - Uncommitted edits stop the pull rather than being pulled over. Fast-forward only.
 - A failed pull is a reason to carry on to the data, not to stop.
-- A failed *data* pull stops it without rebuilding — a report that looks fresh while
-  showing last week's numbers is worse than no new report.
+- A failed *data* pull stops it without rebuilding. A report that looks fresh while showing
+  last week's numbers is worse than no new report.
 
-When a pull does bring in new code, `refresh` restarts itself before doing the work.
-Otherwise it would download an update and then run the old copy already loaded in memory.
-Two notes: the pull step does nothing unless you installed with `pip install -e .` (a plain
-`pip install .` makes a separate copy, so reinstall to update), and `--no-pull` skips it.
-Anything more specific — a date range, ad-hoc brands, a dry run — is still `sos run`.
+When a pull brings in new code, `refresh` restarts itself first. Otherwise it would
+download an update and then run the old copy already loaded in memory.
+
+The pull only does something if you installed with `pip install -e .` — a plain
+`pip install .` makes a separate copy, so reinstall to update. `--no-pull` skips it. For
+anything specific, like a date range, ad-hoc brands or a dry run, use `sos run`.
 
 ## Commands
 
@@ -215,15 +212,14 @@ competitors:
     ambiguous: true             # generic word — flagged in the dashboard
 ```
 
-**Give each brand the keyword variants people actually search.** A brand tracked on one
-keyword while a competitor is tracked on five will look smaller than it is, and nothing
-else in the output reveals why. `sos validate` warns when one brand's coverage is more than
-three times another's. Extra keywords don't add requests — the whole set goes out in one.
+**Give each brand the variants people actually search.** A brand on one keyword against a
+competitor on five looks smaller than it is, and nothing in the output reveals why.
+`sos validate` warns when one brand's coverage is more than three times another's. Extra
+keywords don't add requests — the whole set goes out in one.
 
 **Set `ambiguous: true` for brand names that are also ordinary words** — Emma, Apple,
-Orange. Their volume includes searches that have nothing to do with the brand. The flag
-doesn't correct for it. It surfaces the caveat in the dashboard so nobody quotes the number
-without it.
+Orange. Their volume includes searches unrelated to the brand. The flag doesn't correct for
+it; it surfaces the caveat in the dashboard so nobody quotes the number without it.
 
 ## The data store
 
@@ -234,9 +230,8 @@ without it.
 `sos_pct_3mo` · `sos_pct_12mo` · `volume_3mo` · `data_source` · `pulled_at`
 
 `raw_volume` is the only source of truth. Every other number is recomputed across the whole
-series after each write. So when Google revises an old month, the correction just flows
-through — nothing to reconcile by hand. Writes go to a temp file and are atomically
-renamed, so an interrupted run can't corrupt the store.
+series on each write, so Google's revisions to old months just flow through. Writes go to a
+temp file and are atomically renamed, so an interrupted run can't corrupt the store.
 
 `data/` and `output/` are gitignored by default, so nobody accidentally commits a client's
 competitor set. If you *want* results in version control, delete those two lines from
@@ -244,24 +239,23 @@ competitor set. If you *want* results in version control, delete those two lines
 
 ## How to read the output
 
-Share of Search is a **leading indicator correlated with market share**. It is not a
-prediction of it, and not an explanation of anything. A handful of things will mislead you
-if you let them:
+Share of Search is a **leading indicator correlated with market share**. Not a prediction
+of it, and not an explanation of anything. A few things will mislead you if you let them:
 
 - **The denominator is your competitor set, never total search.** Add or remove a brand and
-  every number changes. If the set is missing a real competitor, every figure is overstated.
-  The tool warns when your own brand exceeds ~65%, which usually means someone is missing.
-- **A brand's share can rise because a competitor collapsed.** This is the most common
-  misreading. When the category total moves enough that share shifts are mostly a
-  denominator effect, the commentary says so first.
-- **Single months are noisy.** Seasonality alone moves these lines. That's what the
-  smoothing toggle is for. The tool also measures each brand's own month-to-month
-  volatility and tells you when a move sits inside it.
-- **A longer smoothing window covers less of the chart, and that's correct.** Rolling
-  averages are *trailing and full*. A 12-month average needs twelve months before it has a
-  value, so it starts nine months later than the 3-month one. The alternative — averaging
-  four months and labelling it a twelve-month average — would be the real error. The chart
-  trims the empty run-up and says which month each view begins.
+  every number changes. If the set is missing a competitor, every figure is overstated. The
+  tool warns when your own brand exceeds ~65%, which usually means someone's missing.
+- **A brand's share can rise because a competitor collapsed.** The most common misreading.
+  When the category total moves enough that share shifts are mostly a denominator effect,
+  the commentary says so first.
+- **Single months are noisy.** Seasonality alone moves these lines — that's what the
+  smoothing toggle is for. The tool also measures each brand's own volatility and tells you
+  when a move sits inside it.
+- **A longer smoothing window covers less of the chart. That's correct.** Rolling averages
+  are trailing and full: a 12-month average needs twelve months before it has a value, so
+  it starts nine months after the 3-month one. Averaging four months and calling it a
+  twelve-month average would be the real error. The chart trims the empty run-up and says
+  which month each view starts.
 - **Google's volumes are rounded and bucketed.** Absolute numbers are approximate. Share is
   a ratio, so consistent estimation bias largely cancels. Read the trend, not the decimal.
 - **Lead times vary by category** — roughly three months in fast-cycle categories, up to
@@ -269,18 +263,18 @@ if you let them:
 - **The current month is never available** from Google Ads, and in practice the data lags
   by about two months. The tool caps its requests accordingly.
 
-The dashboard's collapsible "About this metric" section carries all of this, so a report
-that leaves your hands still explains itself.
+The dashboard's "About this metric" section carries all of this, so a report that leaves
+your hands still explains itself.
 
 ## Commentary
 
-Every run prints one or two sentences describing what moved and whether it means anything.
-These come from rule-based templates over a facts payload computed in pandas — **no LLM, no
-API key, no network**. The tool is fully useful with zero AI dependency.
+Every run prints a sentence or two on what moved and whether it means anything. These come
+from rule-based templates over a facts payload computed in pandas — **no LLM, no API key,
+no network**.
 
-The numbers are never generated by a language model. `facts.py` computes deltas, ranks,
-noise thresholds and category effects. `commentary.py` only phrases them. Swapping `commentary.generate()` for a model call later changes one function
-and nothing else.
+No number is ever generated by a language model. `facts.py` computes deltas, ranks, noise
+thresholds and category effects; `commentary.py` only phrases them. Swapping
+`commentary.generate()` for a model call changes one function and nothing else.
 
 ## Development
 
@@ -294,11 +288,10 @@ no credentials needed. They cover the parts where a bug does real damage: keywor
 brand aggregation, the share calculation, rolling windows, store idempotency, and the
 self-containment of the generated HTML.
 
-On that last one: **the dashboard bundles Chart.js instead of loading it from a CDN**, and
-inlines its data instead of fetching a sibling `data.json` — a page opened over `file://`
-can't fetch anything. That's what makes the file work on someone else's machine, offline,
-with no explanation attached. Chart.js 4.4.1 is vendored under `src/sos/dashboard/vendor/`
-and is MIT licensed.
+**The dashboard bundles Chart.js instead of loading it from a CDN**, and inlines its data
+instead of fetching a sibling `data.json` — a page opened over `file://` can't fetch
+anything. That's what makes it work on someone else's machine, offline. Chart.js 4.4.1 is
+vendored under `src/sos/dashboard/vendor/`, MIT licensed.
 
 ### Adding a different data source
 
@@ -317,18 +310,23 @@ drop-in replacement.
 Google Ads returns a *combined* volume for keywords it considers close variants. Summing
 them doubles that brand's volume and inflates its share. The numbers still look plausible.
 
-The tool detects this. Within a single brand, keywords returning identical volumes in every
-month where both have data (at least two such months, and not all zeros) are counted once,
-with a warning naming what was dropped. Verified against live data: `openai` and `open ai`
-came back identical in 47 of 47 months and were collapsed; `anthropic` and `anthropic ai`
-matched in 0 of 47 and were kept separate.
+The tool detects this. Within one brand, keywords returning identical volumes in every
+month where both have data are counted once, and a warning names what was dropped. It needs
+at least two such months, and not all zeros.
+
+Verified against live data: `openai` and `open ai` came back identical in 47 of 47 months
+and were collapsed. `anthropic` and `anthropic ai` matched in 0 of 47 and were kept
+separate.
+
+Merging keywords needs at least six months of data to be safe. That's why the default
+refresh window is twelve months.
 
 ### On history depth
 
 DataForSEO's docs disagree about whether Google Ads serves 24 or 48 months. Measured
-against the live API on 2026-08-01 (US, en), a request for 48 months returned **47** —
-roughly four years, with the most recent month unavailable because the data lags by two
-months, not one. The tool requests 48, reports what actually arrived, and handles either.
+against the live API on 2026-08-01 (US, en): a request for 48 returned **47**, roughly four
+years. The most recent month was missing because the data lags by two months, not one. The
+tool requests 48, reports what arrived, and handles either.
 
 ## Not in this version
 
