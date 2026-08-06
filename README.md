@@ -33,9 +33,10 @@ Share of Search is your brand's slice of all branded search in a category you de
    total monthly volume across your set of brands
 ```
 
-Les Binet showed ([IPA EffWorks Global 2020](https://ipa.co.uk/knowledge/publications-reports/effworks-global-2020))
-that this correlates with market share and tends to **lead** it — by around three months in
-fast-moving categories, up to twelve for considered purchases.
+Les Binet showed that this correlates with market share and tends to **lead** it — by
+around three months in fast-moving categories, up to twelve for considered purchases. See
+[Share of Search as a Predictive Measure](https://www.youtube.com/watch?v=x1zMufAs3l0),
+IPA EffWorks Global 2020.
 
 Two things it is not. It isn't a prediction of market share, and it doesn't explain
 anything on its own. It's an early signal, available monthly, from data you pull yourself.
