@@ -5,7 +5,7 @@ define, from monthly search volume.
 
 ## The problem
 
-**Last-click attribution only sees demand you captured, never demand you created.**
+**Last-click attribution only sees demand you captured, never demand you influenced.**
 
 Someone searches your brand name, clicks a paid ad, converts. Paid search takes the credit.
 But something made them type your name — a campaign, a mention, six months of brand work.
