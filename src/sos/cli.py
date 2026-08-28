@@ -452,8 +452,8 @@ def run(
     one call, so a run is about $0.075 whether you track three brands or thirty
     and whether you ask for one year or four.
     """
+    from sos import run as run_module
     from sos import store as store_module
-    from sos import transform
 
     config = _resolve_config(config_path, brand, brand_url, competitors, market)
 
@@ -491,58 +491,33 @@ def run(
     click.echo()
     _info("Fetching...")
     try:
-        rows = source.fetch_monthly_volume(
-            keywords=config.all_keywords,
-            location_code=config.market.location_code,
-            language_code=config.market.language_code,
-            date_from=f"{start:%Y-%m-%d}",
-            date_to=f"{end:%Y-%m-%d}",
+        result = run_module.refresh(
+            config=config,
+            source=source,
+            data_dir=data_dir,
+            start=start,
+            end=end,
         )
     except DataSourceError as exc:
         raise _fail(str(exc)) from None
 
-    if not rows:
-        raise _fail(
-            "The API returned no volume data at all. Check that your keywords are "
-            "spelled the way people search for them, and that the market is right."
-        )
-
-    _ok(f"{len(rows)} keyword-months returned, covering {source.months_returned} distinct months.")
-    if backfill and source.months_returned < BACKFILL_MONTHS:
+    _ok(
+        f"{result.rows_fetched} keyword-months returned, covering "
+        f"{result.months_returned} distinct months."
+    )
+    if backfill and result.months_returned < BACKFILL_MONTHS:
         _info(
-            f"Asked for {BACKFILL_MONTHS} months, got {source.months_returned}. "
+            f"Asked for {BACKFILL_MONTHS} months, got {result.months_returned}. "
             "Google Ads caps history depth; this is expected, not an error."
         )
 
-    stored = store_module.load_store(data_dir)
-    active_brands = [b.name for b in config.brands]
-
-    stale = store_module.stale_brands(stored, config.market.name, active_brands)
-    if stale:
-        _warn(
-            f"Dropping {', '.join(stale)} from the {config.market.name} store — no longer in "
-            "the category set. Leaving them in would keep inflating the category total and "
-            "understate every remaining brand."
-        )
-
-    brand_frame, warnings = transform.build_brand_frame(
-        rows, config, previously_counted=store_module.counted_keywords(stored, config.market.name)
-    )
-    for warning in warnings:
-        _warn(warning)
-
-    new_rows = store_module.build_rows(brand_frame, config, data_source=source.name)
-    combined = store_module.upsert(
-        data_dir, new_rows, config.smoothing_windows, active_brands=active_brands
-    )
-
     click.echo()
-    _ok(f"Store updated: {store_module.store_path(data_dir)}  ({len(combined)} rows)")
+    _ok(f"Store updated: {result.store_path}  ({len(result.frame)} rows)")
 
-    for warning in transform.category_set_warnings(combined, config.own_brand.name):
+    for warning in result.warnings:
         _warn(warning)
 
-    _print_summary(combined, config)
+    _print_summary(result.frame, config)
 
     click.echo()
     _info("Next:  sos dashboard --open")
