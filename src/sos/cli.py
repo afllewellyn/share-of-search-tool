@@ -37,6 +37,7 @@ from sos.config import (
     load_dotenv,
 )
 from sos.datasource.base import DataSourceError
+from sos.run import last_complete_month, shift_months  # noqa: F401  (re-exported; tests import from here)
 from sos.datasource.dataforseo import (
     COST_PER_REQUEST_USD,
     MAX_KEYWORDS_PER_REQUEST,
@@ -82,28 +83,6 @@ def _fail(message: str) -> "click.ClickException":
 # --------------------------------------------------------------------------
 # Dates
 # --------------------------------------------------------------------------
-
-
-def last_complete_month(today: Optional[date] = None) -> date:
-    """The most recent month Google Ads can have data for.
-
-    The current month is never available — it hasn't finished. Asking for it
-    returns nothing and makes the last row of every chart look like a crash.
-    """
-    today = today or date.today()
-    return (today.replace(day=1) - _one_day()).replace(day=1)
-
-
-def _one_day():
-    from datetime import timedelta
-
-    return timedelta(days=1)
-
-
-def shift_months(anchor: date, months: int) -> date:
-    """Move a month-start date by ``months`` (negative goes back)."""
-    total = anchor.year * 12 + (anchor.month - 1) + months
-    return date(total // 12, total % 12 + 1, 1)
 
 
 def _parse_month(value: str, flag: str) -> date:
