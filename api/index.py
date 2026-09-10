@@ -72,8 +72,9 @@ def run():
 
     try:
         login, password = get_credentials()
-    except ConfigError:
-        logger.error("DataForSEO credentials are not configured on this deployment.")
+    except ConfigError as exc:
+        # The message names the missing variables, never their values.
+        logger.error("DataForSEO credentials are not configured on this deployment: %s", str(exc).splitlines()[0])
         return jsonify({"error": "This deployment has no data-source credentials configured."}), 500
 
     source = DataForSEOSource(login=login, password=password)
