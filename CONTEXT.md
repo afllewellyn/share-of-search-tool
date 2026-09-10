@@ -60,3 +60,8 @@ which reaches for the full available history on a first pull.
 **Source** — an adapter satisfying `KeywordVolumeSource`: where volumes come
 from. `DataForSEOSource` in production, `FakeSource` in tests. Passed into
 `refresh()` rather than constructed by it. _Avoid_: provider, client, API.
+
+**Web run** — a run driven by `sos.web.run_request` from a form submission,
+over a throwaway `data_dir`. Always a backfill, never a refresh; one paid
+request per submission; inputs capped. The second front door next to the
+CLI, not a replacement for it. `api/run.py` is only the HTTP edge.

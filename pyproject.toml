@@ -28,6 +28,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
+web = ["flask>=3.0"]
 
 [project.urls]
 Homepage = "https://github.com/afllewellyn/share-of-search-tool"

@@ -33,6 +33,13 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Web front door (Next.js from v0 + Vercel)
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
+
 # Editors / OS
 .DS_Store
 .idea/
