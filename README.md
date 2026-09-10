@@ -315,8 +315,10 @@ project would otherwise auto-detect Flask from `requirements.txt` and try to ser
 whole site from it) and gives the Python Function 60 s. `next.config.mjs` rewrites every
 `/api/*` path to that one function, so Flask routes `/api/run` and `/api/markets` itself.
 Set `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` in the project's environment variables;
-without them `/api/run` answers 500 with a clear message. `requirements.txt` installs this
-package itself so the function imports the same code the CLI runs.
+without them `/api/run` answers 500 with a clear message. Vercel installs the Python
+dependencies from `pyproject.toml` (it ignores `requirements.txt` when a `pyproject.toml`
+exists) but not the package itself, so `api/index.py` puts `src/` on the path; the
+function imports the same code the CLI runs.
 
 ## Development
 

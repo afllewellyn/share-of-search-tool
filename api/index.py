@@ -18,6 +18,15 @@ running locally.
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
+
+# Vercel installs the dependencies from pyproject.toml but not the package
+# itself, so put the src/ layout on the path when ``sos`` isn't installed.
+try:
+    import sos  # noqa: F401
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from flask import Flask, jsonify, request
 

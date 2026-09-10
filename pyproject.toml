@@ -24,11 +24,14 @@ dependencies = [
     "pandas>=1.5",
     "requests>=2.28",
     "PyYAML>=6.0",
+    # Only api/index.py needs Flask, but Vercel installs from this list (it
+    # ignores requirements.txt when pyproject.toml exists), so it lives here.
+    "flask>=3.0",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
-web = ["flask>=3.0"]
+web = []  # kept so `pip install -e ".[dev,web]"` in older docs still works
 
 [project.urls]
 Homepage = "https://github.com/afllewellyn/share-of-search-tool"
