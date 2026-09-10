@@ -311,7 +311,7 @@ npm install && npm run dev              # Next.js on :3000 proxies /api/* to :53
 
 Deploy: the GitHub repo is linked to a Vercel project; every push builds a preview and the
 production branch builds production. `vercel.json` pins the framework to Next.js (the
-project would otherwise auto-detect Flask from `requirements.txt` and try to serve the
+project would otherwise auto-detect Flask from the dependency list and try to serve the
 whole site from it) and gives the Python Function 60 s. `next.config.mjs` rewrites every
 `/api/*` path to that one function, so Flask routes `/api/run` and `/api/markets` itself.
 Set `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` in the project's environment variables;

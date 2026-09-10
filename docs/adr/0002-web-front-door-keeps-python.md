@@ -21,7 +21,7 @@ Keep one pipeline. The web front door is `sos.web.run_request`, a pure
 function over the existing `refresh()` and `build_dashboard()`, with a
 Flask shim in `api/index.py` that Vercel serves as a Python Function. The
 page is a Next.js app at the repo root that only posts JSON and renders
-what comes back. `requirements.txt` installs the package itself so the
+what comes back. Vercel installs the dependencies from `pyproject.toml`; `api/index.py` puts `src/` on the path so the
 function imports exactly the code the CLI runs.
 
 A web run uses a temp directory as its store. That drops the refresh
