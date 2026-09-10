@@ -1,6 +1,6 @@
 # Vercel installs this for the Python function under api/.
 # `.` installs the sos package itself (with the dashboard template and the
-# vendored Chart.js declared as package-data), so api/run.py imports the same
+# vendored Chart.js declared as package-data), so api/index.py imports the same
 # code the CLI runs. Add new runtime deps to pyproject.toml, not here.
 .
 flask>=3.0

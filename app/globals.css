@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html { background: #07111f; }
+body { margin: 0; background: #07111f; color: #edf3f7; font-family: Arial, Helvetica, sans-serif; }
+button, input, select { font: inherit; }
+::selection { background: #8ce8c3; color: #07111f; }
+
+@layer components {
+  .field { width: 100%; border: 1px solid #22334a; border-radius: 0.75rem; background: rgba(7, 17, 31, 0.72); padding: 0.8rem 0.9rem; color: #edf3f7; outline: none; transition: border-color 150ms ease, box-shadow 150ms ease; }
+  .field::placeholder { color: #617086; }
+  .field:focus { border-color: #8ce8c3; box-shadow: 0 0 0 3px rgba(140, 232, 195, 0.12); }
+  .field option { background: #0d1a2b; color: #edf3f7; }
+  .action-button, .action-button-primary { display: inline-flex; min-height: 2.75rem; align-items: center; justify-content: center; gap: 0.5rem; border-radius: 0.65rem; padding: 0.65rem 0.9rem; font-size: 0.75rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; transition: 150ms ease; }
+  .action-button { border: 1px solid #22334a; color: #8c9aae; }
+  .action-button:hover { border-color: #8c9aae; color: #edf3f7; }
+  .action-button-primary { background: #8ce8c3; color: #07111f; }
+  .action-button-primary:hover { background: rgba(140, 232, 195, 0.9); }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+}

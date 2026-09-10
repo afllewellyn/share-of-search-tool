@@ -19,7 +19,7 @@ the share calculation in step.
 
 Keep one pipeline. The web front door is `sos.web.run_request`, a pure
 function over the existing `refresh()` and `build_dashboard()`, with a
-Flask shim in `api/run.py` that Vercel serves as a Python Function. The
+Flask shim in `api/index.py` that Vercel serves as a Python Function. The
 page is a Next.js app at the repo root that only posts JSON and renders
 what comes back. `requirements.txt` installs the package itself so the
 function imports exactly the code the CLI runs.
@@ -34,7 +34,7 @@ for tracking a category over time, and the form is for a single look.
 - The CLI is untouched; `sos.web` imports from it, never the reverse.
 - The hosted page spends the deployment's DataForSEO credits with no login.
   Input caps in `sos.web` bound a single request; a shared passphrase is a
-  one-line addition to `api/run.py` when the URL starts circulating.
+  one-line addition to `api/index.py` when the URL starts circulating.
 - Vercel Python Functions carry pandas on cold start. Measured locally the
   whole request is ~5 s; `vercel.json` allows 60.
 - No result persists server-side. If clients later want history, the CSV

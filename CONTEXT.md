@@ -64,4 +64,4 @@ from. `DataForSEOSource` in production, `FakeSource` in tests. Passed into
 **Web run** — a run driven by `sos.web.run_request` from a form submission,
 over a throwaway `data_dir`. Always a backfill, never a refresh; one paid
 request per submission; inputs capped. The second front door next to the
-CLI, not a replacement for it. `api/run.py` is only the HTTP edge.
+CLI, not a replacement for it. `api/index.py` is only the HTTP edge.

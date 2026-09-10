@@ -2,11 +2,12 @@
 
 Deliberately thin. Everything that can be tested without HTTP lives in
 :mod:`sos.web`; this file only maps JSON in/out and exceptions to status
-codes. Vercel discovers the Flask ``app`` and serves it at ``/api/*``.
+codes. Vercel serves it as one Python Function; ``next.config.mjs`` rewrites every
+``/api/*`` path to it and Flask routes on the original path.
 
 Local development mirrors Vercel's nextjs-flask example::
 
-    python api/run.py            # Flask on http://127.0.0.1:5328
+    python api/index.py          # Flask on http://127.0.0.1:5328
     npm run dev                  # Next.js proxies /api/* there (see next.config)
 
 Credentials come from ``DATAFORSEO_LOGIN`` / ``DATAFORSEO_PASSWORD`` — the

@@ -292,13 +292,13 @@ It is the same pipeline — `sos.web.run_request` is `refresh()` followed by
 - **Inputs are capped** (12 competitors, 8 keywords per brand, 12/24/48 months) so an
   open form can't be turned into a bulk keyword scraper.
 
-Layout: `api/run.py` is a Flask app Vercel serves as a Python Function; the page itself is
+Layout: `api/index.py` is a Flask app Vercel serves as a Python Function; the page itself is
 a Next.js app at the repo root (generated with v0) that POSTs to `/api/run`.
 
 ```bash
 # Backend only
 pip install -e ".[dev,web]"
-python api/run.py                       # http://127.0.0.1:5328/api/run
+python api/index.py                       # http://127.0.0.1:5328/api/run
 curl -X POST localhost:5328/api/run -H 'content-type: application/json' -d '{
   "own_brand": {"name": "Acme", "keywords": ["acme", "acme app"]},
   "competitors": [{"name": "Globex", "keywords": ["globex"]}],
@@ -309,10 +309,14 @@ curl -X POST localhost:5328/api/run -H 'content-type: application/json' -d '{
 npm install && npm run dev              # Next.js on :3000 proxies /api/* to :5328
 ```
 
-Deploy: `vercel link` at the repo root (framework: Next.js), set `DATAFORSEO_LOGIN` and
-`DATAFORSEO_PASSWORD` in the project's environment variables, `vercel --prod`.
-`requirements.txt` installs this package itself so the function imports the same code the
-CLI runs; `vercel.json` gives it 60 s.
+Deploy: the GitHub repo is linked to a Vercel project; every push builds a preview and the
+production branch builds production. `vercel.json` pins the framework to Next.js (the
+project would otherwise auto-detect Flask from `requirements.txt` and try to serve the
+whole site from it) and gives the Python Function 60 s. `next.config.mjs` rewrites every
+`/api/*` path to that one function, so Flask routes `/api/run` and `/api/markets` itself.
+Set `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` in the project's environment variables;
+without them `/api/run` answers 500 with a clear message. `requirements.txt` installs this
+package itself so the function imports the same code the CLI runs.
 
 ## Development
 
