@@ -122,7 +122,7 @@ def test_malformed_bodies_fail_with_a_readable_message(payload):
 def test_a_web_run_is_a_backfill_over_the_requested_months(tmp_path):
     source = FakeSource(_rows())
 
-    web.run_request(_payload(months=12), source, data_dir=tmp_path)
+    web.run_request(*web.parse_request(_payload(months=12)), source, data_dir=tmp_path)
 
     end = last_complete_month()
     (call,) = source.calls
@@ -135,7 +135,7 @@ def test_a_web_run_is_a_backfill_over_the_requested_months(tmp_path):
 def test_the_response_carries_everything_the_page_renders(tmp_path):
     source = FakeSource(_rows())
 
-    response = web.run_request(_payload(), source, data_dir=tmp_path)
+    response = web.run_request(*web.parse_request(_payload()), source, data_dir=tmp_path)
 
     assert response["own_brand"] == "Acme"
     assert response["market"] == "US"
@@ -162,7 +162,7 @@ def test_the_response_carries_everything_the_page_renders(tmp_path):
 def test_each_run_starts_from_an_empty_store(tmp_path):
     """No refresh semantics on the web: the temp store has only this run's rows."""
     source = FakeSource(_rows())
-    response = web.run_request(_payload(months=12), source, data_dir=tmp_path)
+    response = web.run_request(*web.parse_request(_payload(months=12)), source, data_dir=tmp_path)
 
     assert response["months_returned"] == 12
     assert len(response["latest"]["rows"]) == 3
@@ -170,11 +170,10 @@ def test_each_run_starts_from_an_empty_store(tmp_path):
 
 def test_an_empty_response_surfaces_as_a_data_source_error(tmp_path):
     with pytest.raises(DataSourceError, match="no volume data"):
-        web.run_request(_payload(), FakeSource([]), data_dir=tmp_path)
+        web.run_request(*web.parse_request(_payload()), FakeSource([]), data_dir=tmp_path)
 
 
-def test_a_bad_request_never_reaches_the_source(tmp_path):
-    source = FakeSource(_rows())
+def test_a_bad_request_never_reaches_the_source():
+    """Parsing is a separate step, so nothing is pulled for a malformed body."""
     with pytest.raises(ConfigError):
-        web.run_request(_payload(months=5), source, data_dir=tmp_path)
-    assert source.calls == []
+        web.parse_request(_payload(months=5))

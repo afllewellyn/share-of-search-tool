@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import datetime, timezone
+from functools import lru_cache
 from html import escape as html_escape
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -45,7 +46,16 @@ def build_dashboard(
 ) -> Path:
     """Write the dashboard and return the path it landed at."""
     payload = build_payload(frame, config, generated_at=generated_at)
+    html = render_dashboard(payload, config)
 
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(html, encoding="utf-8")
+    return out_path
+
+
+def render_dashboard(payload: Dict[str, Any], config: Config) -> str:
+    """Splice a payload from :func:`build_payload` into the template."""
     substitutions = {
         PAYLOAD_PLACEHOLDER: _script_safe_json(payload),
         TITLE_PLACEHOLDER: html_escape(
@@ -58,12 +68,7 @@ def build_dashboard(
     # placeholders — a brand named "__SOS_CHARTJS__" would otherwise have
     # 200 KB of library spliced into the middle of the JSON payload.
     pattern = re.compile("|".join(re.escape(key) for key in substitutions))
-    html = pattern.sub(lambda match: substitutions[match.group(0)], TEMPLATE_PATH.read_text(encoding="utf-8"))
-
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(html, encoding="utf-8")
-    return out_path
+    return pattern.sub(lambda match: substitutions[match.group(0)], _template_source())
 
 
 def _script_safe_json(payload: Dict[str, Any]) -> str:
@@ -79,8 +84,14 @@ def _script_safe_json(payload: Dict[str, Any]) -> str:
     return json.dumps(payload, allow_nan=False, separators=(",", ":")).replace("<", "\\u003c")
 
 
+@lru_cache(maxsize=1)
+def _template_source() -> str:
+    return TEMPLATE_PATH.read_text(encoding="utf-8")
+
+
+@lru_cache(maxsize=1)
 def _chartjs_source() -> str:
-    """Read the vendored Chart.js build.
+    """Read the vendored Chart.js build (once per process; it is ~200 KB).
 
     Missing rather than fatal: the dashboard degrades to its table and CSV
     exports, which is a far better outcome than refusing to build at all.
@@ -158,8 +169,9 @@ def build_payload(
         ],
         "series": series,
         "latest": {
-            "month": payload_facts.get("month") or month_keys[-1],
-            "rows": payload_facts.get("brands", []),
+            "month": payload_facts["month"] or month_keys[-1],
+            "month_label": payload_facts["month_label"],
+            "rows": payload_facts["brands"],
         },
         "commentary": bullets,
         "columns": columns,

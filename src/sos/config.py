@@ -12,6 +12,7 @@ traceback.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -179,6 +180,29 @@ def load_config(path: Optional[Path] = None) -> Config:
     return config
 
 
+def market_from_shorthand(name: str, language_code: str = "en") -> Market:
+    """Resolve a shorthand like ``US`` to a :class:`Market`.
+
+    Raises:
+        ConfigError: When the shorthand is not in :data:`COMMON_LOCATIONS`.
+    """
+    if not isinstance(name, str) or not name.strip():
+        raise ConfigError('market is required, e.g. "US".')
+    key = name.strip().upper()
+    code = COMMON_LOCATIONS.get(key)
+    if code is None:
+        raise ConfigError(
+            f"Unknown market '{name}'. Choose one of: {', '.join(sorted(COMMON_LOCATIONS))}.\n"
+            "  For anywhere else, use a config file and set market.location_code explicitly."
+        )
+    return Market(name=key, location_code=code, language_code=language_code)
+
+
+def split_keywords(raw: str) -> List[str]:
+    """Split a comma- or newline-separated string into clean, lowercased keywords."""
+    return [part.strip().lower() for part in re.split(r"[,\n]", raw) if part.strip()]
+
+
 def config_from_flags(
     brand: str,
     competitors: List[str],
@@ -205,14 +229,7 @@ def config_from_flags(
         )
 
     if location_code is None:
-        resolved = COMMON_LOCATIONS.get(market_name.strip().upper())
-        if resolved is None:
-            raise ConfigError(
-                f"Don't know the DataForSEO location code for market '{market_name}'.\n"
-                f"  Known shorthands: {', '.join(sorted(COMMON_LOCATIONS))}\n"
-                "  For anywhere else, use a config file and set market.location_code explicitly."
-            )
-        location_code = resolved
+        location_code = market_from_shorthand(market_name).location_code
 
     brands = [Brand(name=brand.strip(), keywords=[brand.strip().lower()], is_own_brand=True, url=brand_url)]
     brands += [Brand(name=c, keywords=[c.lower()]) for c in cleaned_competitors]

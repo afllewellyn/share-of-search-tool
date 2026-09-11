@@ -297,7 +297,7 @@ a Next.js app at the repo root (generated with v0) that POSTs to `/api/run`.
 
 ```bash
 # Backend only
-pip install -e ".[dev,web]"
+pip install -e ".[dev]"
 python api/index.py                       # http://127.0.0.1:5328/api/run
 curl -X POST localhost:5328/api/run -H 'content-type: application/json' -d '{
   "own_brand": {"name": "Acme", "keywords": ["acme", "acme app"]},

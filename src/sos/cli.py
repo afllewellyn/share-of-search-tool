@@ -12,7 +12,6 @@ Five commands:
 from __future__ import annotations
 
 import logging
-import re
 import sys
 import webbrowser
 from dataclasses import dataclass
@@ -35,14 +34,15 @@ from sos.config import (
     keyword_parity_warnings,
     load_config,
     load_dotenv,
+    split_keywords,
 )
 from sos.datasource.base import DataSourceError
-from sos.run import last_complete_month, shift_months  # noqa: F401  (re-exported; tests import from here)
 from sos.datasource.dataforseo import (
     COST_PER_REQUEST_USD,
     MAX_KEYWORDS_PER_REQUEST,
     DataForSEOSource,
 )
+from sos.run import last_complete_month, shift_months
 
 #: How far back to reach when backfilling. DataForSEO's docs disagree about
 #: whether Google Ads serves 24 or 48 months; we ask for 48 and report what
@@ -213,11 +213,6 @@ class _BrandDraft:
     url: str = ""
 
 
-def _split_keywords(raw: str) -> List[str]:
-    """Split a comma- or newline-separated answer into clean keywords."""
-    return [part.strip().lower() for part in re.split(r"[,\n]", raw) if part.strip()]
-
-
 def _prompt_brand_keywords(name: str, url: str = "") -> _BrandDraft:
     """Collect the search variants for one brand.
 
@@ -233,7 +228,7 @@ def _prompt_brand_keywords(name: str, url: str = "") -> _BrandDraft:
     extra = click.prompt("    Also count", default="", show_default=False)
 
     keywords: List[str] = []
-    for keyword in [seed, *_split_keywords(extra)]:
+    for keyword in [seed, *split_keywords(extra)]:
         if keyword and keyword not in keywords:
             keywords.append(keyword)
 

@@ -31,7 +31,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
-web = []  # kept so `pip install -e ".[dev,web]"` in older docs still works
 
 [project.urls]
 Homepage = "https://github.com/afllewellyn/share-of-search-tool"

@@ -27,19 +27,16 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from sos import commentary, facts
 from sos.config import (
-    COMMON_LOCATIONS,
     DEFAULT_SMOOTHING_WINDOWS,
     Brand,
     Config,
     ConfigError,
-    Market,
     _validate,
+    market_from_shorthand,
+    split_keywords,
 )
-from sos.dashboard.build import build_dashboard
 from sos.datasource.base import KeywordVolumeSource
-from sos.run import last_complete_month, refresh, shift_months
 
 #: Months of history a web run may ask for. 48 is the deepest Google Ads goes.
 ALLOWED_MONTHS = (12, 24, 48)
@@ -81,7 +78,7 @@ def parse_request(payload: Any) -> Tuple[Config, int]:
         for i, raw in enumerate(competitors_raw)
     ]
 
-    market = _parse_market(payload.get("market", "US"))
+    market = market_from_shorthand(payload.get("market", "US"))
     months = _parse_months(payload.get("months", DEFAULT_MONTHS))
 
     config = Config(
@@ -94,17 +91,20 @@ def parse_request(payload: Any) -> Tuple[Config, int]:
 
 
 def run_request(
-    payload: Any,
+    config: Config,
+    months: int,
     source: KeywordVolumeSource,
     data_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Run the pipeline for one form submission and return what the page shows.
+    """Run the pipeline for one parsed submission and return what the page shows.
 
     Args:
-        payload: The parsed JSON body (see :func:`parse_request`).
+        config: The brand set, from :func:`parse_request`.
+        months: How much history to pull, from :func:`parse_request`.
         source: Where volumes come from — DataForSEO in production.
-        data_dir: Where the throwaway store goes. Defaults to a fresh temp
-            directory; pass one to inspect the CSV in a test.
+        data_dir: Where the throwaway store goes. Defaults to a temp
+            directory removed after the run; pass one to inspect the CSV in
+            a test.
 
     Returns:
         A JSON-serialisable dict: ``html`` (the self-contained dashboard),
@@ -112,30 +112,30 @@ def run_request(
         ``months_returned`` and ``cost_usd``.
 
     Raises:
-        ConfigError: The request was malformed (caller maps to HTTP 400).
         DataSourceError: The source failed or returned nothing (HTTP 502).
     """
-    config, months = parse_request(payload)
+    # Imported here so the Flask function can answer /api/markets without
+    # paying pandas' import cost on a cold start.
+    from sos.dashboard.build import build_payload, render_dashboard
+    from sos.run import last_complete_month, refresh, shift_months
+
     end = last_complete_month()
     start = shift_months(end, -(months - 1))
 
-    data_dir = Path(data_dir) if data_dir else Path(tempfile.mkdtemp(prefix="sos-web-"))
-    result = refresh(config=config, source=source, data_dir=data_dir, start=start, end=end)
+    if data_dir is not None:
+        result = refresh(config=config, source=source, data_dir=Path(data_dir), start=start, end=end)
+    else:
+        with tempfile.TemporaryDirectory(prefix="sos-web-") as tmp:
+            result = refresh(config=config, source=source, data_dir=Path(tmp), start=start, end=end)
 
-    out_path = data_dir / "share-of-search.html"
-    build_dashboard(result.frame, config, out_path)
-
-    payload_facts = facts.month_facts(result.frame, config)
+    # One facts/commentary pass feeds both the JSON summary and the HTML.
+    payload = build_payload(result.frame, config)
     return {
-        "html": out_path.read_text(encoding="utf-8"),
+        "html": render_dashboard(payload, config),
         "own_brand": config.own_brand.name,
         "market": config.market.name,
-        "latest": {
-            "month": payload_facts.get("month"),
-            "month_label": payload_facts.get("month_label"),
-            "rows": payload_facts.get("brands", []),
-        },
-        "commentary": commentary.generate(payload_facts),
+        "latest": payload["latest"],
+        "commentary": payload["commentary"],
         "warnings": list(result.warnings),
         "months_requested": months,
         "months_returned": result.months_returned,
@@ -158,15 +158,14 @@ def _parse_brand(raw: Any, field: str, is_own_brand: bool) -> Brand:
 
     keywords = _parse_keywords(raw.get("keywords"), f"{field}.keywords", brand=name)
 
-    url = raw.get("url")
-    url = _clean_text(url, f"{field}.url", 300) if url else None
+    url = _clean_text(raw.get("url"), f"{field}.url", 300) or None
 
-    return Brand(name=name, keywords=keywords, is_own_brand=is_own_brand, url=url or None)
+    return Brand(name=name, keywords=keywords, is_own_brand=is_own_brand, url=url)
 
 
 def _parse_keywords(raw: Any, field: str, brand: str) -> List[str]:
     if isinstance(raw, str):
-        raw = raw.split(",")
+        raw = split_keywords(raw)
     if not isinstance(raw, list):
         raise ConfigError(f"{field} must be a list of search terms.")
 
@@ -184,18 +183,6 @@ def _parse_keywords(raw: Any, field: str, brand: str) -> List[str]:
             f"{MAX_KEYWORDS_PER_BRAND} per brand."
         )
     return cleaned
-
-
-def _parse_market(raw: Any) -> Market:
-    if not isinstance(raw, str) or not raw.strip():
-        raise ConfigError("market is required, e.g. \"US\".")
-    name = raw.strip().upper()
-    code = COMMON_LOCATIONS.get(name)
-    if code is None:
-        raise ConfigError(
-            f"Unknown market '{raw}'. Choose one of: {', '.join(sorted(COMMON_LOCATIONS))}."
-        )
-    return Market(name=name, location_code=code, language_code="en")
 
 
 def _parse_months(raw: Any) -> int:

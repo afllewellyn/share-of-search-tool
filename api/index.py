@@ -47,7 +47,7 @@ app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 @app.get("/api/markets")
 def markets():
     """The market shorthands the form can offer, from the one list the CLI uses."""
-    return jsonify(
+    response = jsonify(
         {
             "markets": sorted(COMMON_LOCATIONS),
             "months": list(web.ALLOWED_MONTHS),
@@ -57,6 +57,9 @@ def markets():
             },
         }
     )
+    # Static per deployment; let the CDN serve it without invoking the function.
+    response.headers["Cache-Control"] = "public, max-age=3600"
+    return response
 
 
 @app.post("/api/run")
@@ -66,7 +69,7 @@ def run():
         return jsonify({"error": "Request body must be JSON."}), 400
 
     try:
-        config, _ = web.parse_request(payload)
+        config, months = web.parse_request(payload)
     except ConfigError as exc:
         return jsonify({"error": str(exc)}), 400
 
@@ -84,7 +87,7 @@ def run():
     )
 
     try:
-        result = web.run_request(payload, source)
+        result = web.run_request(config, months, source)
     except DataSourceError as exc:
         return jsonify({"error": str(exc)}), 502
 

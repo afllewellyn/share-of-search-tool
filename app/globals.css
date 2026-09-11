@@ -21,6 +21,3 @@ button, input, select { font: inherit; }
   .action-button-primary:hover { background: rgba(140, 232, 195, 0.9); }
 }
 
-@layer utilities {
-  .text-balance { text-wrap: balance; }
-}
