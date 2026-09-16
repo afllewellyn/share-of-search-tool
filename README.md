@@ -1,7 +1,10 @@
 # Share of Search
 
-Track whether your brand's demand is growing or shrinking against a competitor set you
-define, from monthly search volume.
+Are more people searching for you, or for your competitors?
+
+Share of Search measures interest in your brand relative to the brands you compete with: of
+everyone searching by name, how many are searching for you? Tracked monthly, it tends to
+move before market share does.
 
 ## The problem
 
@@ -62,6 +65,9 @@ from DataForSEO, works out each brand's share, and writes two things:
 
 No server, no database, no login, no subscription. You bring a DataForSEO account; the rest
 is a `git clone`.
+
+There's also a hosted [web version](#web-interface) of the same pipeline — a form instead of
+a terminal, for a one-off report with no install.
 
 ![The generated dashboard](docs/dashboard.png)
 
