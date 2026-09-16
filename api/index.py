@@ -13,11 +13,19 @@ Local development mirrors Vercel's nextjs-flask example::
 Credentials come from ``DATAFORSEO_LOGIN`` / ``DATAFORSEO_PASSWORD`` — the
 same variables the CLI reads — set on the Vercel project, or in ``.env`` when
 running locally.
+
+Two things stand between the public internet and a paid request:
+
+- ``SOS_WEB_PASSPHRASE``: a shared passphrase the form sends in the
+  ``X-SOS-Passphrase`` header. Without it configured, runs are refused.
+- A per-address and per-instance rate limit on ``/api/run``.
 """
 
 from __future__ import annotations
 
+import hmac
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -44,6 +52,19 @@ app = Flask(__name__)
 # Bodies over this are not a brand set; refuse before parsing.
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
+#: Shared passphrase for /api/run. Refuse every run when it is not set, so a
+#: deployment can never spend credits by accident.
+PASSPHRASE_ENV_VAR = "SOS_WEB_PASSPHRASE"
+PASSPHRASE_HEADER = "X-SOS-Passphrase"
+
+#: Runs allowed per address and per function instance in a ten-minute window.
+#: Each accepted run is one paid request; a person iterating on a brand set
+#: needs a handful, a loop needs thousands.
+RUN_LIMIT_PER_ADDRESS = 6
+RUN_LIMIT_PER_INSTANCE = 30
+RUN_LIMIT_WINDOW_SECONDS = 600
+limiter = web.RateLimiter(RUN_LIMIT_PER_ADDRESS, RUN_LIMIT_PER_INSTANCE, RUN_LIMIT_WINDOW_SECONDS)
+
 # The function is capped at 60 s (vercel.json). Two attempts of 20 s plus the
 # 2 s backoff leave room to build the report, so a stalled provider surfaces
 # as a 502 here instead of a platform timeout with a non-JSON body.
@@ -69,8 +90,31 @@ def markets():
     return response
 
 
+def _client_address() -> str:
+    """The caller's address as Vercel reports it; the socket peer is the proxy."""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    return forwarded.split(",")[0].strip() or request.remote_addr or "unknown"
+
+
+def _passphrase_ok() -> bool:
+    expected = os.environ.get(PASSPHRASE_ENV_VAR, "")
+    given = request.headers.get(PASSPHRASE_HEADER, "")
+    return bool(expected) and hmac.compare_digest(expected.encode(), given.encode())
+
+
 @app.post("/api/run")
 def run():
+    # Cheapest refusals first: nothing below is reached without the passphrase.
+    if not os.environ.get(PASSPHRASE_ENV_VAR):
+        logger.error("%s is not set; refusing all runs.", PASSPHRASE_ENV_VAR)
+        return jsonify({"error": "This deployment has no access passphrase configured, so it cannot run reports."}), 503
+    if not _passphrase_ok():
+        return jsonify({"error": "The passphrase is missing or wrong."}), 401
+    if not limiter.allow(_client_address()):
+        response = jsonify({"error": f"Too many runs from this address. Try again in {RUN_LIMIT_WINDOW_SECONDS // 60} minutes."})
+        response.headers["Retry-After"] = str(RUN_LIMIT_WINDOW_SECONDS)
+        return response, 429
+
     payload = request.get_json(silent=True)
     if payload is None:
         return jsonify({"error": "Request body must be JSON."}), 400

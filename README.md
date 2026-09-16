@@ -291,6 +291,9 @@ It is the same pipeline — `sos.web.run_request` is `refresh()` followed by
   semantics and the grouped-keyword decision is made fresh from each response.
 - **Inputs are capped** (12 competitors, 8 keywords per brand, 12/24/48 months) so an
   open form can't be turned into a bulk keyword scraper.
+- **Runs need a passphrase.** The form sends `SOS_WEB_PASSPHRASE` in an `X-SOS-Passphrase`
+  header; without the variable set, every run is refused (503). Behind that, `/api/run`
+  allows 6 runs per address and 30 per function instance every ten minutes (429 after).
 
 Layout: `api/index.py` is a Flask app Vercel serves as a Python Function; the page itself is
 a Next.js app at the repo root (generated with v0) that POSTs to `/api/run`.
@@ -299,7 +302,9 @@ a Next.js app at the repo root (generated with v0) that POSTs to `/api/run`.
 # Backend only
 pip install -e ".[dev]"
 python api/index.py                       # http://127.0.0.1:5328/api/run
-curl -X POST localhost:5328/api/run -H 'content-type: application/json' -d '{
+export SOS_WEB_PASSPHRASE='pick-something'
+curl -X POST localhost:5328/api/run -H 'content-type: application/json' \
+  -H "X-SOS-Passphrase: $SOS_WEB_PASSPHRASE" -d '{
   "own_brand": {"name": "Acme", "keywords": ["acme", "acme app"]},
   "competitors": [{"name": "Globex", "keywords": ["globex"]}],
   "market": "US", "months": 24
@@ -314,8 +319,9 @@ production branch builds production. `vercel.json` pins the framework to Next.js
 project would otherwise auto-detect Flask from the dependency list and try to serve the
 whole site from it) and gives the Python Function 60 s. `next.config.mjs` rewrites every
 `/api/*` path to that one function, so Flask routes `/api/run` and `/api/markets` itself.
-Set `DATAFORSEO_LOGIN` and `DATAFORSEO_PASSWORD` in the project's environment variables;
-without them `/api/run` answers 500 with a clear message. Vercel installs the Python
+Set `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD` and `SOS_WEB_PASSPHRASE` in the project's
+environment variables; without the credentials `/api/run` answers 500, without the
+passphrase 503, both with a clear message. Vercel installs the Python
 dependencies from `pyproject.toml` (it ignores `requirements.txt` when a `pyproject.toml`
 exists) but not the package itself, so `api/index.py` puts `src/` on the path; the
 function imports the same code the CLI runs.

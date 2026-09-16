@@ -177,3 +177,24 @@ def test_a_bad_request_never_reaches_the_source():
     """Parsing is a separate step, so nothing is pulled for a malformed body."""
     with pytest.raises(ConfigError):
         web.parse_request(_payload(months=5))
+
+
+def test_the_ambiguous_flag_is_kept_and_must_be_boolean():
+    config, _ = web.parse_request(_payload(own_brand={"name": "Apple", "keywords": ["apple"], "ambiguous": True}))
+    assert config.ambiguous_brands == ["Apple"]
+
+    with pytest.raises(ConfigError, match="ambiguous"):
+        web.parse_request(_payload(own_brand={"name": "Apple", "keywords": ["apple"], "ambiguous": "yes"}))
+
+
+# -- RateLimiter ------------------------------------------------------------
+
+
+def test_rate_limiter_bounds_each_key_and_the_total():
+    limiter = web.RateLimiter(per_key=2, total=3, window_seconds=60)
+    assert limiter.allow("a", now=0)
+    assert limiter.allow("a", now=1)
+    assert not limiter.allow("a", now=2)          # per-key cap
+    assert limiter.allow("b", now=3)
+    assert not limiter.allow("c", now=4)          # total cap across keys
+    assert limiter.allow("a", now=61)             # window slid past the first two

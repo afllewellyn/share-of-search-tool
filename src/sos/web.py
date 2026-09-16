@@ -24,8 +24,11 @@ path from request dict to HTML is testable with the fake source.
 from __future__ import annotations
 
 import tempfile
+import time
+from collections import deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from threading import Lock
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 from sos.config import (
     DEFAULT_SMOOTHING_WINDOWS,
@@ -160,7 +163,11 @@ def _parse_brand(raw: Any, field: str, is_own_brand: bool) -> Brand:
 
     url = _clean_text(raw.get("url"), f"{field}.url", 300) or None
 
-    return Brand(name=name, keywords=keywords, is_own_brand=is_own_brand, url=url)
+    ambiguous = raw.get("ambiguous", False)
+    if not isinstance(ambiguous, bool):
+        raise ConfigError(f"{field}.ambiguous must be true or false.")
+
+    return Brand(name=name, keywords=keywords, is_own_brand=is_own_brand, url=url, ambiguous=ambiguous)
 
 
 def _parse_keywords(raw: Any, field: str, brand: str) -> List[str]:
@@ -204,3 +211,46 @@ def _clean_text(value: Any, field: str, max_length: int) -> str:
     if len(text) > max_length:
         raise ConfigError(f"{field} is too long (max {max_length} characters).")
     return text
+
+
+# --------------------------------------------------------------------------
+# Rate limiting
+# --------------------------------------------------------------------------
+
+
+class RateLimiter:
+    """A sliding-window counter per key, plus one window for everyone.
+
+    Each accepted run is a paid request, so this is the second line behind
+    the passphrase: it bounds what one caller can spend if the passphrase
+    leaks, and what all callers together can spend per process. On Vercel
+    the counters live in one function instance, so treat the numbers as a
+    ceiling per warm instance rather than a global guarantee.
+    """
+
+    def __init__(self, per_key: int, total: int, window_seconds: float) -> None:
+        self.per_key = per_key
+        self.total = total
+        self.window = window_seconds
+        self._by_key: Dict[str, Deque[float]] = {}
+        self._all: Deque[float] = deque()
+        self._lock = Lock()
+
+    def allow(self, key: str, now: Optional[float] = None) -> bool:
+        """Record one attempt for ``key`` and say whether it may proceed."""
+        now = time.monotonic() if now is None else now
+        cutoff = now - self.window
+        with self._lock:
+            while self._all and self._all[0] <= cutoff:
+                self._all.popleft()
+            bucket = self._by_key.setdefault(key, deque())
+            while bucket and bucket[0] <= cutoff:
+                bucket.popleft()
+            # Drop idle keys so a scan of addresses cannot grow memory.
+            for stale in [k for k, q in self._by_key.items() if not q and k != key]:
+                del self._by_key[stale]
+            if len(bucket) >= self.per_key or len(self._all) >= self.total:
+                return False
+            bucket.append(now)
+            self._all.append(now)
+            return True
