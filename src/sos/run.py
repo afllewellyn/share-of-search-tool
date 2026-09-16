@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -151,3 +151,24 @@ def _stale_warning(stale: List[str], market: str) -> str:
         "category set. Leaving them in would keep inflating the category total and "
         "understate every remaining brand."
     )
+
+
+# --------------------------------------------------------------------------
+# Month arithmetic
+# --------------------------------------------------------------------------
+
+
+def last_complete_month(today: Optional[date] = None) -> date:
+    """The most recent month Google Ads can have data for.
+
+    The current month is never available — it hasn't finished. Asking for it
+    returns nothing and makes the last row of every chart look like a crash.
+    """
+    today = today or date.today()
+    return (today.replace(day=1) - timedelta(days=1)).replace(day=1)
+
+
+def shift_months(anchor: date, months: int) -> date:
+    """Move a month-start date by ``months`` (negative goes back)."""
+    total = anchor.year * 12 + (anchor.month - 1) + months
+    return date(total // 12, total % 12 + 1, 1)

@@ -21,13 +21,11 @@ from sos.cli import (
     _render_config_yaml,
     _resolve_range,
     _source_checkout,
-    _split_keywords,
     _update_code,
     _yaml_scalar,
-    last_complete_month,
-    shift_months,
 )
-from sos.config import ConfigError, _config_from_dict, keyword_parity_warnings
+from sos.config import ConfigError, _config_from_dict, keyword_parity_warnings, split_keywords
+from sos.run import last_complete_month, shift_months
 
 
 # --------------------------------------------------------------------------
@@ -157,7 +155,7 @@ def test_keywords_needing_quotes_survive_the_round_trip():
     ],
 )
 def test_keyword_entry_is_forgiving_about_spacing_and_case(raw, expected):
-    assert _split_keywords(raw) == expected
+    assert split_keywords(raw) == expected
 
 
 # --------------------------------------------------------------------------

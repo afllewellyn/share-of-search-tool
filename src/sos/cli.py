@@ -12,7 +12,6 @@ Five commands:
 from __future__ import annotations
 
 import logging
-import re
 import sys
 import webbrowser
 from dataclasses import dataclass
@@ -35,6 +34,7 @@ from sos.config import (
     keyword_parity_warnings,
     load_config,
     load_dotenv,
+    split_keywords,
 )
 from sos.datasource.base import DataSourceError
 from sos.datasource.dataforseo import (
@@ -42,6 +42,7 @@ from sos.datasource.dataforseo import (
     MAX_KEYWORDS_PER_REQUEST,
     DataForSEOSource,
 )
+from sos.run import last_complete_month, shift_months
 
 #: How far back to reach when backfilling. DataForSEO's docs disagree about
 #: whether Google Ads serves 24 or 48 months; we ask for 48 and report what
@@ -82,28 +83,6 @@ def _fail(message: str) -> "click.ClickException":
 # --------------------------------------------------------------------------
 # Dates
 # --------------------------------------------------------------------------
-
-
-def last_complete_month(today: Optional[date] = None) -> date:
-    """The most recent month Google Ads can have data for.
-
-    The current month is never available — it hasn't finished. Asking for it
-    returns nothing and makes the last row of every chart look like a crash.
-    """
-    today = today or date.today()
-    return (today.replace(day=1) - _one_day()).replace(day=1)
-
-
-def _one_day():
-    from datetime import timedelta
-
-    return timedelta(days=1)
-
-
-def shift_months(anchor: date, months: int) -> date:
-    """Move a month-start date by ``months`` (negative goes back)."""
-    total = anchor.year * 12 + (anchor.month - 1) + months
-    return date(total // 12, total % 12 + 1, 1)
 
 
 def _parse_month(value: str, flag: str) -> date:
@@ -234,11 +213,6 @@ class _BrandDraft:
     url: str = ""
 
 
-def _split_keywords(raw: str) -> List[str]:
-    """Split a comma- or newline-separated answer into clean keywords."""
-    return [part.strip().lower() for part in re.split(r"[,\n]", raw) if part.strip()]
-
-
 def _prompt_brand_keywords(name: str, url: str = "") -> _BrandDraft:
     """Collect the search variants for one brand.
 
@@ -254,7 +228,7 @@ def _prompt_brand_keywords(name: str, url: str = "") -> _BrandDraft:
     extra = click.prompt("    Also count", default="", show_default=False)
 
     keywords: List[str] = []
-    for keyword in [seed, *_split_keywords(extra)]:
+    for keyword in [seed, *split_keywords(extra)]:
         if keyword and keyword not in keywords:
             keywords.append(keyword)
 

@@ -24,6 +24,9 @@ dependencies = [
     "pandas>=1.5",
     "requests>=2.28",
     "PyYAML>=6.0",
+    # Only api/index.py needs Flask, but Vercel installs from this list (it
+    # ignores requirements.txt when pyproject.toml exists), so it lives here.
+    "flask>=3.0",
 ]
 
 [project.optional-dependencies]

@@ -312,6 +312,38 @@ def aggregate_to_brands(
     return aggregated.sort_values(["date", "brand"]).reset_index(drop=True)
 
 
+def cross_brand_identical_volume_warnings(
+    brand_frame: pd.DataFrame, min_overlap: int = MIN_GROUPING_OVERLAP
+) -> List[str]:
+    """Warn when two different brands report identical volume every month.
+
+    :func:`detect_grouped_keywords` only merges keywords within one brand —
+    two brands showing the same number is deliberately left alone there,
+    since it isn't a double-count to fix. But it is worth a flag: Google Ads
+    can bucket unrelated low-volume terms into the same rounded figure, and a
+    report where every number for two brands is identical (an exact 50/50
+    split, say) is worth reading with that in mind. This never changes a
+    volume or a share — it only surfaces the coincidence.
+    """
+    if brand_frame.empty:
+        return []
+
+    pivot = brand_frame.pivot_table(index="date", columns="brand", values="raw_volume", aggfunc="last")
+    brands = list(pivot.columns)
+    warnings: List[str] = []
+
+    for i, left in enumerate(brands):
+        for right in brands[i + 1 :]:
+            if _series_are_identical(pivot[left], pivot[right], min_overlap):
+                warnings.append(
+                    f"{left} and {right} reported the same search volume in every "
+                    "overlapping month. That can be coincidence, or Google Ads bucketing "
+                    "two low-volume terms together — nothing here has been merged or changed."
+                )
+
+    return warnings
+
+
 def missing_brand_months(brand_frame: pd.DataFrame) -> pd.DataFrame:
     """Brand-months where the provider returned no data at all."""
     if brand_frame.empty:
@@ -435,6 +467,7 @@ def build_brand_frame(
     warnings.extend(grouping_warnings)
 
     brand_frame = aggregate_to_brands(frame, config, exclude_keywords=excluded)
+    warnings.extend(cross_brand_identical_volume_warnings(brand_frame))
 
     gaps = missing_brand_months(brand_frame)
     if not gaps.empty:

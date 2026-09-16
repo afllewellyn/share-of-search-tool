@@ -68,6 +68,9 @@ class DataForSEOSource(KeywordVolumeSource):
         max_retries: int = 4,
         session: Optional[requests.Session] = None,
     ) -> None:
+        # These defaults suit the CLI, a long-running process with no deadline
+        # of its own. api/index.py constructs this with timeout=20,
+        # max_retries=2 instead, to fit inside Vercel's 60s function budget.
         self._auth_header = _basic_auth_header(login, password)
         self.timeout = timeout
         self.max_retries = max_retries
