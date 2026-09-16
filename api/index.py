@@ -29,6 +29,7 @@ except ModuleNotFoundError:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 
 from sos import web
 from sos.config import COMMON_LOCATIONS, ConfigError, get_credentials, load_dotenv
@@ -108,6 +109,15 @@ def run():
 @app.errorhandler(413)
 def too_large(_exc):
     return jsonify({"error": "Request body is too large for a brand set."}), 413
+
+
+@app.errorhandler(Exception)
+def unexpected(exc):
+    """Every failure leaves as JSON so the page can show it, not a platform HTML 500."""
+    if isinstance(exc, HTTPException):
+        return jsonify({"error": exc.description}), exc.code
+    logger.exception("Unhandled error while building a report")
+    return jsonify({"error": "The report could not be built because of an error in the app, not the data. It has been logged."}), 500
 
 
 if __name__ == "__main__":
