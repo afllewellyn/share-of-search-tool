@@ -23,6 +23,21 @@ function Section({ eyebrow, title, children }: { eyebrow: string; title: string;
   )
 }
 
+function Points({ items }: { items: [string, string][] }) {
+  return (
+    <ul className="grid gap-4">
+      {items.map(([lead, rest]) => (
+        <li key={lead} className="flex gap-3">
+          <span className="mt-3 size-1.5 shrink-0 rounded-full bg-signal" />
+          <span><strong className="text-slate-50">{lead}</strong> {rest}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+const linkClass = 'underline decoration-line underline-offset-4 hover:text-signal'
+
 export default function AboutPage() {
   return (
     <main className="min-h-screen px-5 py-6 text-slate-100 sm:px-8 lg:px-12">
@@ -35,97 +50,87 @@ export default function AboutPage() {
         <section className="py-12">
           <Eyebrow>WHAT YOU ARE LOOKING AT</Eyebrow>
           <h1 className="mt-3 max-w-3xl text-balance text-4xl font-semibold leading-[1.05] tracking-[-0.05em] sm:text-6xl">
-            A monthly read on interest in your brand, relative to the brands you compete with.
+            Are more people looking for you, or for your competitors?
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
-            This page explains the measure behind every report on this site: why it exists, what it counts, what it is good for, and the handful of ways it can mislead you if you read it carelessly.
+            Every report on this site answers that one question, month by month. This page explains where the number comes from, what it is good for, and the few ways it can fool you.
           </p>
         </section>
 
         <div className="grid gap-6">
-          <Section eyebrow="01 / THE PROBLEM" title="Last-click attribution only sees demand you captured, never demand you influenced">
+          <Section eyebrow="01 / THE PROBLEM" title="Your reports only count the people you caught, not the people you convinced">
             <p>
-              Someone searches your brand name, clicks a paid ad, converts. Paid search takes the credit. But something made them type your name: a campaign, a mention, six months of brand work. That scores zero in the model, so it is the first budget cut and the hardest to defend.
+              Picture someone who types your brand name into Google, clicks your ad, and buys. Your reports give the credit to that ad. But something made them type your name in the first place: a campaign they saw, a friend who mentioned you, months of steady brand building. None of that shows up anywhere. So when budgets get tight, brand work is the first thing cut, because nobody can point to a number and say &ldquo;this is what it did.&rdquo;
             </p>
             <p>
-              The tools that do measure it are enterprise software: brand trackers, panel-based market share, marketing mix modelling. Enterprise pricing, quarterly data, onboarding in weeks. Fine for a global brand. Out of reach for most agency and client work, and heavy for a question as plain as &ldquo;is interest in us moving?&rdquo;
+              There are tools that measure this properly, but they are built for the biggest companies in the world. They cost a fortune, report once a quarter, and take weeks to set up. For most brands and agencies, that is far too much machinery for a simple question: is interest in us going up or down?
             </p>
             <p>
-              So the quarterly review falls back on impressions, reach and engagement, which no CFO accepts as evidence that anything changed.
+              So the quarterly review falls back on impressions, reach and engagement. Those are numbers about how much you spent, not about whether anyone cared.
             </p>
           </Section>
 
-          <Section eyebrow="02 / THE MEASURE" title="What Share of Search counts">
+          <Section eyebrow="02 / THE MEASURE" title="What Share of Search actually counts">
             <p>
-              Branded search is someone typing your name on purpose. That is a signal of interest, not a record of a conversion.
+              When someone types a brand name into Google, they are doing it on purpose. Nobody searches &ldquo;Nike&rdquo; by accident. Every one of those searches is a small vote of interest, and Google keeps count of them.
             </p>
             <p>
-              Share of Search is your brand&apos;s slice of all branded search across a set of brands you choose:
+              Share of Search takes those counts for you and for the competitors you choose, and asks a simple question: out of everyone searching for any of these brands, what fraction were searching for you?
             </p>
             <pre className="overflow-x-auto rounded-xl border border-line bg-ink/60 p-5 font-mono text-sm leading-6 text-signal">
-{`        your brand's monthly search volume
-  ─────────────────────────────────────────────────  ×  100
-   total monthly volume across your set of brands`}
+{`  searches for your brand this month
+  ──────────────────────────────────────────  ×  100
+  searches for all the brands in your set`}
             </pre>
             <p>
-              Les Binet showed that this correlates with market share and tends to <strong className="text-slate-50">lead</strong> it: by about three months in fast-moving categories, up to twelve for considered purchases. See{' '}
-              <a href={TALK} target="_blank" rel="noopener noreferrer" className="underline decoration-line underline-offset-4 hover:text-signal">Share of Search as a Predictive Measure</a>, IPA EffWorks Global 2020.
+              If your share is 30%, then three of every ten people looking for a brand like yours were looking for you. If it was 25% last year, more people are choosing to look for you now. That is the whole idea.
             </p>
             <p>
-              It is not a prediction of market share, and it explains nothing on its own. It is an early signal you can pull monthly. Think of it as brand consideration measured from real behaviour: no survey, no panel, just what people type.
+              Why it matters: a researcher named Les Binet studied this across many industries and found that when a brand&apos;s share of search rises, its share of the market usually rises too, a few months later. That makes it an early warning system. You can see interest shifting before it shows up in sales. His talk is called{' '}
+              <a href={TALK} target="_blank" rel="noopener noreferrer" className={linkClass}>Share of Search as a Predictive Measure</a>{' '}
+              if you want the full story.
+            </p>
+            <p>
+              One honest caveat: it is a signal, not a crystal ball. It tells you interest is moving. It does not tell you why, and it does not promise sales will follow.
             </p>
           </Section>
 
           <Section eyebrow="03 / WHAT IT IS FOR" title="What you would use it for">
-            <ul className="grid gap-3">
-              {[
-                ['Show brand work did something', 'when last-click says it did not. Branded search going up is interest you earned, and it moves before revenue does.'],
-                ['Defend or grow a brand budget', 'with a number rather than an assertion.'],
-                ['Read a campaign early:', 'weeks after it ends, not two quarters later.'],
-                ['See what a competitor’s move did.', 'Did they take your interest, or grow the whole pool? Share and total volume answer different questions.'],
-                ['Bring something to a QBR', 'that is not impressions, and that the client can check.'],
-              ].map(([lead, rest]) => (
-                <li key={lead} className="flex gap-3">
-                  <span className="mt-3 size-1.5 shrink-0 rounded-full bg-signal" />
-                  <span><strong className="text-slate-50">{lead}</strong> {rest}</span>
-                </li>
-              ))}
-            </ul>
+            <Points items={[
+              ['Prove brand work did something.', 'When more people search for you by name, that is interest you created, and it shows up before sales do.'],
+              ['Defend or grow a brand budget', 'with a number instead of a feeling.'],
+              ['Read a campaign early.', 'You can see the effect weeks after it ends instead of waiting two quarters for sales data.'],
+              ['See what a competitor’s big move did.', 'Did they pull interest away from you, or did they get more people interested in the whole category? The report shows both.'],
+              ['Bring something to a client meeting', 'that is not impressions, and that the client can check for themselves.'],
+            ]} />
           </Section>
 
-          <Section eyebrow="04 / HOW TO READ IT" title="How to read a report">
+          <Section eyebrow="04 / HOW TO READ IT" title="How to read a report without fooling yourself">
             <p>
-              Share of Search is a <strong className="text-slate-50">leading indicator correlated with market share</strong>. Not a prediction of it, and not an explanation of anything. A few things will mislead you if you let them:
+              Share of Search is a useful early signal, but only if you read it carefully. Here are the traps:
             </p>
-            <ul className="grid gap-4">
-              {[
-                ['The denominator is your competitor set, never total search.', 'Add or remove a brand and every number changes. If the set is missing a competitor, every figure is overstated. The report warns when your own brand exceeds about 65%, which usually means someone is missing.'],
-                ['A brand’s share can rise because a competitor collapsed.', 'The most common misreading. When the total moves enough that share shifts are mostly a denominator effect, the commentary says so first.'],
-                ['Single months are noisy.', 'Seasonality alone moves these lines; that is what the smoothing toggle in the dashboard is for. The report also measures each brand’s own volatility and tells you when a move sits inside it.'],
-                ['A longer smoothing window covers less of the chart. That is correct.', 'Rolling averages are trailing and full: a 12-month average needs twelve months before it has a value, so it starts nine months after the 3-month one. The chart trims the empty run-up and says which month each view starts.'],
-                ['Google’s volumes are rounded and bucketed.', 'Absolute numbers are approximate. Share is a ratio, so consistent estimation bias largely cancels. Read the trend, not the decimal.'],
-                ['Lead times vary by category.', 'Roughly three months in fast-cycle categories, up to twelve for considered purchases.'],
-                ['The current month is never available', 'from Google Ads, and in practice the data lags by about two months. Reports stop at the last complete month.'],
-                ['Common words need flagging.', 'A brand called Apple or Orange picks up searches that are not about the brand. Tick “Common word” on the form and the report marks that brand as ambiguous wherever it appears.'],
-              ].map(([lead, rest]) => (
-                <li key={lead} className="flex gap-3">
-                  <span className="mt-3 size-1.5 shrink-0 rounded-full bg-signal" />
-                  <span><strong className="text-slate-50">{lead}</strong> {rest}</span>
-                </li>
-              ))}
-            </ul>
+            <Points items={[
+              ['Your share depends entirely on which competitors you listed.', 'Add one brand or remove one and every number changes. If you forgot a big competitor, your share looks better than it really is. The report warns you when your own share is above about 65%, because that usually means someone is missing from the list.'],
+              ['Your share can go up because a competitor went down.', 'This is the most common misreading. If a rival shrinks, your slice of the pie gets bigger even though nothing changed for you. When that is what is happening, the report’s commentary says so first.'],
+              ['One month means very little.', 'Search volumes bounce around with the seasons, the news, and plain luck. The dashboard has a smoothing switch that averages several months together so you can see the real trend. The report also knows how jumpy each brand normally is, and tells you when a change is just normal wobble.'],
+              ['Longer averages start later on the chart. That is correct.', 'A 12-month average needs twelve months of data before it can say anything, so its line begins later than the 3-month one. The chart tells you which month each view starts.'],
+              ['Google’s numbers are rounded.', 'The raw search counts are estimates, not exact figures. Because share is a comparison between brands, most of that fuzziness cancels out. Trust the direction of the line, not the second decimal place.'],
+              ['The head start varies by industry.', 'In fast-moving categories like fashion or apps, search moves about three months ahead of sales. For big considered purchases like cars or software contracts, it can be closer to a year.'],
+              ['The data runs about two months behind.', 'Google does not publish the current month, and the most recent complete month often arrives late. Reports always stop at the last month that is fully available.'],
+              ['Some brand names are also ordinary words.', 'Searches for “apple” or “orange” include a lot of fruit. If a brand in your set has a name like that, tick “Common word” on the form. The report will mark that brand so nobody reads its numbers as gospel.'],
+            ]} />
             <p className="text-muted">
-              The dashboard&apos;s own &ldquo;About this metric&rdquo; section carries all of this, so a report that leaves your hands still explains itself. Every sentence of commentary comes from rules over computed facts: no number is ever generated by a language model.
+              The dashboard carries its own short version of this list, so a report you email to someone still explains itself. And every sentence of commentary in a report is written by fixed rules from the numbers, never by an AI guessing.
             </p>
           </Section>
 
-          <Section eyebrow="05 / WHERE THE DATA COMES FROM" title="One request per report">
+          <Section eyebrow="05 / WHERE THE NUMBERS COME FROM" title="One question to Google, one report back">
             <p>
-              Each report pulls monthly Google Ads search volume for every keyword in your brand set through DataForSEO, in one request, then works out each brand&apos;s share. Nothing you enter is stored on a server; the report is built, returned to your browser, and forgotten.
+              When you run a report, the site asks Google Ads for the monthly search counts of every keyword you entered, does the maths, and hands the finished report back to your browser. The counts come through DataForSEO, a data service that provides Google&apos;s official search volumes, and each report is one paid request to it. Nothing you type is saved anywhere. Close the tab and it is gone, unless you downloaded the file.
             </p>
             <p>
-              The same pipeline is available as a command-line tool with a persistent monthly store, for people who want to track a brand set over time. It is open source:{' '}
-              <a href={REPO} target="_blank" rel="noopener noreferrer" className="underline decoration-line underline-offset-4 hover:text-signal">afllewellyn/share-of-search-tool</a>.
+              This site was built by a marketer for marketers. The full project, including a version that tracks a brand set month after month, is free to read and use at{' '}
+              <a href={REPO} target="_blank" rel="noopener noreferrer" className={linkClass}>github.com/afllewellyn/share-of-search-tool</a>.
             </p>
           </Section>
         </div>
@@ -133,9 +138,9 @@ export default function AboutPage() {
         <footer className="mt-16 border-t border-line py-6 text-xs leading-5 text-muted">
           <p>Methodology follows Les Binet, IPA EffWorks 2020. Share of Search tends to lead market share; read it as an early signal, not a forecast.</p>
           <p className="mt-3">
-            Built by <a href="https://www.linkedin.com/in/afllewellyn" target="_blank" rel="noopener noreferrer" className="text-slate-200 underline decoration-line underline-offset-4 hover:text-signal">Andrew Llewellyn</a>
-            {' · '}<a href={REPO} target="_blank" rel="noopener noreferrer" className="text-slate-200 underline decoration-line underline-offset-4 hover:text-signal">Source on GitHub</a>
-            {' · '}<Link href="/" className="text-slate-200 underline decoration-line underline-offset-4 hover:text-signal">Report builder</Link>
+            Built by <a href="https://www.linkedin.com/in/afllewellyn" target="_blank" rel="noopener noreferrer" className={`text-slate-200 ${linkClass}`}>Andrew Llewellyn</a>
+            {' · '}<a href={REPO} target="_blank" rel="noopener noreferrer" className={`text-slate-200 ${linkClass}`}>Source on GitHub</a>
+            {' · '}<Link href="/" className={`text-slate-200 ${linkClass}`}>Report builder</Link>
           </p>
         </footer>
       </div>
