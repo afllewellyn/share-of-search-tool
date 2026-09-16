@@ -18,6 +18,7 @@ from sos.transform import (
     build_brand_frame,
     category_set_warnings,
     compute_shares,
+    cross_brand_identical_volume_warnings,
     detect_grouped_keywords,
     dropped_keywords,
     missing_brand_months,
@@ -124,6 +125,30 @@ def test_identical_volumes_across_different_brands_are_not_grouped():
     frame = rows_to_frame(_rows("acme", [100, 200, 300]) + _rows("globex", [100, 200, 300]))
 
     assert detect_grouped_keywords(frame, config) == {}
+
+
+def test_identical_volumes_across_brands_are_flagged_but_not_merged():
+    """The pair isn't touched, but the coincidence is worth a caveat."""
+    config = _config(
+        Brand(name="Acme", keywords=["acme"], is_own_brand=True),
+        Brand(name="Globex", keywords=["globex"]),
+    )
+    frame = rows_to_frame(_rows("acme", [100, 200, 300]) + _rows("globex", [100, 200, 300]))
+    brands = aggregate_to_brands(frame, config)
+
+    warnings = cross_brand_identical_volume_warnings(brands)
+
+    assert len(warnings) == 1
+    assert "Acme" in warnings[0] and "Globex" in warnings[0]
+    acme_jan = brands[(brands["brand"] == "Acme") & (brands["date"] == "2025-01-01")]
+    assert acme_jan.iloc[0]["raw_volume"] == 100  # untouched, not merged
+
+
+def test_different_volumes_across_brands_are_not_flagged(sample_rows, sample_config):
+    frame = rows_to_frame(sample_rows)
+    brands = aggregate_to_brands(frame, sample_config)
+
+    assert cross_brand_identical_volume_warnings(brands) == []
 
 
 def test_single_overlapping_month_is_not_enough_evidence():
