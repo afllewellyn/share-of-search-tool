@@ -43,6 +43,12 @@ app = Flask(__name__)
 # Bodies over this are not a brand set; refuse before parsing.
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
+# The function is capped at 60 s (vercel.json). Two attempts of 20 s plus the
+# 2 s backoff leave room to build the report, so a stalled provider surfaces
+# as a 502 here instead of a platform timeout with a non-JSON body.
+PROVIDER_TIMEOUT_SECONDS = 20
+PROVIDER_ATTEMPTS = 2
+
 
 @app.get("/api/markets")
 def markets():
@@ -80,7 +86,9 @@ def run():
         logger.error("DataForSEO credentials are not configured on this deployment: %s", str(exc).splitlines()[0])
         return jsonify({"error": "This deployment has no data-source credentials configured."}), 500
 
-    source = DataForSEOSource(login=login, password=password)
+    source = DataForSEOSource(
+        login=login, password=password, timeout=PROVIDER_TIMEOUT_SECONDS, max_retries=PROVIDER_ATTEMPTS
+    )
     logger.info(
         "web run: own=%s competitors=%d keywords=%d market=%s",
         config.own_brand.name, len(config.competitors), len(config.all_keywords), config.market.name,
@@ -89,7 +97,10 @@ def run():
     try:
         result = web.run_request(config, months, source)
     except DataSourceError as exc:
-        return jsonify({"error": str(exc)}), 502
+        # The full message can quote the provider's response body or name the
+        # credential variables; keep that in the function log, not the page.
+        logger.error("DataForSEO request failed: %s", exc)
+        return jsonify({"error": "The search-volume provider did not return data. Try again in a minute."}), 502
 
     return jsonify(result)
 
