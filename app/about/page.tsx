@@ -126,7 +126,7 @@ export default function AboutPage() {
 
           <Section eyebrow="05 / WHERE THE NUMBERS COME FROM" title="One question to Google, one report back">
             <p>
-              When you run a report, the site fetches the monthly search counts for every keyword you entered, does the maths, and hands the finished report back to your browser. The counts come from Google&apos;s Keyword Planner, the same figures Google shows advertisers: how many times people searched each term on Google that month, whether they clicked an ad, a normal result, or nothing at all. They reach the site through DataForSEO, a data service that resells those official Google numbers, and each report is one paid request to it. Nothing you type is saved anywhere. Close the tab and it is gone, unless you downloaded the file.
+              When you run a report, the site fetches the monthly search counts for every keyword you entered, does the maths, and hands the finished report back to your browser. The counts come from Google&apos;s Keyword Planner, the same figures Google shows advertisers: how many times people searched each term on Google that month. They reach the site through DataForSEO, a data service that resells those official Google numbers, and each report is one paid request to it. Nothing you type is saved anywhere. Close the tab and it is gone, unless you downloaded the file.
             </p>
             <p>
               This site was built by a marketer for marketers. The full project, including a version that tracks a brand set month after month, is free to read and use at{' '}

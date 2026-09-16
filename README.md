@@ -66,8 +66,8 @@ from DataForSEO, works out each brand's share, and writes two things:
 No server, no database, no login, no subscription. You bring a DataForSEO account; the rest
 is a `git clone`.
 
-There's also a hosted [web version](#web-interface) of the same pipeline — a form instead of
-a terminal, for a one-off report with no install.
+There's also a hosted [web version](#web-interface) of the same pipeline, for a one-off
+report if you'd rather opt out of the terminal entirely.
 
 ![The generated dashboard](docs/dashboard.png)
 
