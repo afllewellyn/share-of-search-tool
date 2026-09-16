@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__SOS_TITLE__</title>
+<script>
+  // Embedded in the web app's report page: match its dark palette and let the
+  // page handle downloads. A downloaded copy opened on its own keeps the toggle
+  // and the CSV buttons.
+  if (window.self !== window.top) {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.setAttribute("data-embed", "");
+  }
+</script>
 <style>
   :root {
     color-scheme: light;
@@ -32,15 +41,15 @@
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
       color-scheme: dark;
-      --surface-0: #121211;
-      --surface-1: #1a1a19;
-      --border:    #33332f;
-      --border-strong: #4a4a45;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted:     #918f85;
-      --grid: #2a2a27;
-      --accent-soft: #17222f;
+      --surface-0: #07111f;
+      --surface-1: #0d1a2b;
+      --border:    #22334a;
+      --border-strong: #3a5070;
+      --text-primary:   #f1f5f9;
+      --text-secondary: #c5cfdd;
+      --text-muted:     #8c9aae;
+      --grid: #1a2a40;
+      --accent-soft: #13253b;
       --series-1: #3987e5;
       --series-2: #d95926;
       --series-3: #199e70;
@@ -49,21 +58,21 @@
       --series-6: #008300;
       --series-7: #9085e9;
       --series-8: #e66767;
-      --note-bg: #262115;
+      --note-bg: #1f2a26;
       --note-border: #fab219;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --surface-0: #121211;
-    --surface-1: #1a1a19;
-    --border:    #33332f;
-    --border-strong: #4a4a45;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted:     #918f85;
-    --grid: #2a2a27;
-    --accent-soft: #17222f;
+    --surface-0: #07111f;
+    --surface-1: #0d1a2b;
+    --border:    #22334a;
+    --border-strong: #3a5070;
+    --text-primary:   #f1f5f9;
+    --text-secondary: #c5cfdd;
+    --text-muted:     #8c9aae;
+    --grid: #1a2a40;
+    --accent-soft: #13253b;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -72,7 +81,7 @@
     --series-6: #008300;
     --series-7: #9085e9;
     --series-8: #e66767;
-    --note-bg: #262115;
+    --note-bg: #1f2a26;
     --note-border: #fab219;
   }
 
@@ -95,6 +104,9 @@
     border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
   }
   .theme-toggle:hover { border-color: var(--border-strong); color: var(--text-primary); }
+  [data-embed] .theme-toggle, [data-embed] .csv-only { display: none; }
+  .embed-only { display: none; }
+  [data-embed] .embed-only { display: inline-block; }
 
   .card {
     background: var(--surface-1);
@@ -264,10 +276,12 @@
   <section class="card">
     <h2>Download</h2>
     <div class="buttons">
-      <button class="btn" id="dlView" type="button">Current view (CSV)</button>
-      <button class="btn" id="dlFull" type="button">Full dataset (CSV)</button>
+      <button class="btn csv-only" id="dlView" type="button">Current view (CSV)</button>
+      <button class="btn csv-only" id="dlFull" type="button">Full dataset (CSV)</button>
+      <button class="btn embed-only" id="dlHtml" type="button">Download HTML</button>
     </div>
-    <p class="chart-note">Both files carry a header block recording the source, market, competitor set and date range, so the numbers stay explicable once the file leaves this page.</p>
+    <p class="chart-note csv-only">Both files carry a header block recording the source, market, competitor set and date range, so the numbers stay explicable once the file leaves this page.</p>
+    <p class="chart-note embed-only">Saves this report as one self-contained file. Opened on its own, it also offers the CSV exports.</p>
   </section>
 
   <details>
@@ -774,6 +788,11 @@ const DATA = __SOS_PAYLOAD__;
     });
     document.getElementById("dlFull").addEventListener("click", function () {
       download(fullDatasetCsv(), "full");
+    });
+    document.getElementById("dlHtml").addEventListener("click", function () {
+      // The sandbox blocks downloads started in here; the page that embeds
+      // this report holds the original HTML and saves it.
+      window.parent.postMessage({ type: "sos:download-html" }, "*");
     });
   }
 

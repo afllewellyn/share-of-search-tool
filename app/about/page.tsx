@@ -126,7 +126,7 @@ export default function AboutPage() {
 
           <Section eyebrow="05 / WHERE THE NUMBERS COME FROM" title="One question to Google, one report back">
             <p>
-              When you run a report, the site asks Google Ads for the monthly search counts of every keyword you entered, does the maths, and hands the finished report back to your browser. The counts come through DataForSEO, a data service that provides Google&apos;s official search volumes, and each report is one paid request to it. Nothing you type is saved anywhere. Close the tab and it is gone, unless you downloaded the file.
+              When you run a report, the site fetches the monthly search counts for every keyword you entered, does the maths, and hands the finished report back to your browser. The counts come from Google&apos;s Keyword Planner, the same figures Google shows advertisers: how many times people searched each term on Google that month, whether they clicked an ad, a normal result, or nothing at all. They reach the site through DataForSEO, a data service that resells those official Google numbers, and each report is one paid request to it. Nothing you type is saved anywhere. Close the tab and it is gone, unless you downloaded the file.
             </p>
             <p>
               This site was built by a marketer for marketers. The full project, including a version that tracks a brand set month after month, is free to read and use at{' '}
@@ -135,13 +135,13 @@ export default function AboutPage() {
           </Section>
         </div>
 
-        <footer className="mt-16 border-t border-line py-6 text-xs leading-5 text-muted">
-          <p>Methodology follows Les Binet, IPA EffWorks 2020. Share of Search tends to lead market share; read it as an early signal, not a forecast.</p>
-          <p className="mt-3">
+        <footer className="mt-16 border-t border-line py-6 text-sm leading-6 text-muted">
+          <p>
             Built by <a href="https://www.linkedin.com/in/afllewellyn" target="_blank" rel="noopener noreferrer" className={`text-slate-200 ${linkClass}`}>Andrew Llewellyn</a>
             {' · '}<a href={REPO} target="_blank" rel="noopener noreferrer" className={`text-slate-200 ${linkClass}`}>Source on GitHub</a>
             {' · '}<Link href="/" className={`text-slate-200 ${linkClass}`}>Report builder</Link>
           </p>
+          <p className="mt-3">Methodology follows Les Binet, IPA EffWorks 2020. Share of Search tends to lead market share; read it as an early signal, not a forecast.</p>
         </footer>
       </div>
     </main>
