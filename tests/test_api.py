@@ -33,11 +33,10 @@ def _run(client, passphrase="open-sesame", **kwargs):
     return client.post("/api/run", json={"own_brand": {}}, headers=headers, **kwargs)
 
 
-def test_runs_are_refused_when_no_passphrase_is_configured(client, monkeypatch):
+def test_the_endpoint_is_open_when_no_passphrase_is_configured(client, monkeypatch):
     monkeypatch.delenv("SOS_WEB_PASSPHRASE")
-    response = _run(client)
-    assert response.status_code == 503
-    assert "passphrase" in response.get_json()["error"]
+    assert _run(client, passphrase=None).status_code == 400  # reached the parser
+    assert client.get("/api/markets").get_json()["passphrase_required"] is False
 
 
 def test_a_missing_or_wrong_passphrase_is_a_401(client):
@@ -77,6 +76,7 @@ def test_markets_needs_no_passphrase(client):
     response = client.get("/api/markets")
     assert response.status_code == 200
     assert "US" in response.get_json()["markets"]
+    assert response.get_json()["passphrase_required"] is True
 
 
 def test_unexpected_errors_are_json(client, monkeypatch):

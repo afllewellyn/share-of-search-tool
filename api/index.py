@@ -16,9 +16,9 @@ running locally.
 
 Two things stand between the public internet and a paid request:
 
-- ``SOS_WEB_PASSPHRASE``: a shared passphrase the form sends in the
-  ``X-SOS-Passphrase`` header. Without it configured, runs are refused.
-- A per-address and per-instance rate limit on ``/api/run``.
+- A per-address and per-instance rate limit on ``/api/run``. Always on.
+- ``SOS_WEB_PASSPHRASE``: optional. When set, the form must send it in the
+  ``X-SOS-Passphrase`` header; when unset the endpoint is open.
 """
 
 from __future__ import annotations
@@ -52,8 +52,8 @@ app = Flask(__name__)
 # Bodies over this are not a brand set; refuse before parsing.
 app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
-#: Shared passphrase for /api/run. Refuse every run when it is not set, so a
-#: deployment can never spend credits by accident.
+#: Optional shared passphrase for /api/run. Unset means open; the rate limit
+#: below is the guard that is always on.
 PASSPHRASE_ENV_VAR = "SOS_WEB_PASSPHRASE"
 PASSPHRASE_HEADER = "X-SOS-Passphrase"
 
@@ -77,6 +77,7 @@ def markets():
     """The market shorthands the form can offer, from the one list the CLI uses."""
     response = jsonify(
         {
+            "passphrase_required": bool(os.environ.get(PASSPHRASE_ENV_VAR)),
             "markets": sorted(COMMON_LOCATIONS),
             "months": list(web.ALLOWED_MONTHS),
             "limits": {
@@ -97,17 +98,17 @@ def _client_address() -> str:
 
 
 def _passphrase_ok() -> bool:
+    """True when no passphrase is configured, or the header matches it."""
     expected = os.environ.get(PASSPHRASE_ENV_VAR, "")
+    if not expected:
+        return True
     given = request.headers.get(PASSPHRASE_HEADER, "")
-    return bool(expected) and hmac.compare_digest(expected.encode(), given.encode())
+    return hmac.compare_digest(expected.encode(), given.encode())
 
 
 @app.post("/api/run")
 def run():
-    # Cheapest refusals first: nothing below is reached without the passphrase.
-    if not os.environ.get(PASSPHRASE_ENV_VAR):
-        logger.error("%s is not set; refusing all runs.", PASSPHRASE_ENV_VAR)
-        return jsonify({"error": "This deployment has no access passphrase configured, so it cannot run reports."}), 503
+    # Cheapest refusals first.
     if not _passphrase_ok():
         return jsonify({"error": "The passphrase is missing or wrong."}), 401
     if not limiter.allow(_client_address()):
