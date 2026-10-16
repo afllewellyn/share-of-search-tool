@@ -1,9 +1,24 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
+const TITLE = 'About Share of Search'
+const DESCRIPTION = 'What Share of Search measures, what to use it for, and how to read a report without misreading it.'
+
 export const metadata: Metadata = {
-  title: 'About Share of Search',
-  description: 'What Share of Search measures, what to use it for, and how to read a report without misreading it.',
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/about',
+    siteName: 'Share of Search',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 }
 
 const REPO = 'https://github.com/afllewellyn/share-of-search-tool'
