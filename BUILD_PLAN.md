@@ -110,7 +110,7 @@ sos dashboard               Build the HTML from the existing store. No API calls
 sos validate                Check config validity and env vars without calling the API.
 ```
 
-Default behaviour with no prior data: `sos run` should detect an empty store and backfill automatically, with a printed notice.
+Default behavior with no prior data: `sos run` should detect an empty store and backfill automatically, with a printed notice.
 
 Ad-hoc mode (`--brand` + `--competitors`) requires no config file at all. This is the "try it in 30 seconds" path for a new user — make sure it works cleanly.
 

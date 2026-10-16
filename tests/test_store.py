@@ -306,7 +306,7 @@ def test_pruning_leaves_other_markets_alone(tmp_path, rows, sample_config):
 
 
 def test_omitting_active_brands_prunes_nothing(tmp_path, rows, sample_config):
-    """Callers that don't declare a category set get the old behaviour."""
+    """Callers that don't declare a category set get the old behavior."""
     upsert(tmp_path, rows, sample_config.smoothing_windows)
     combined = upsert(tmp_path, rows[rows["brand"] != "Initech"], sample_config.smoothing_windows)
 

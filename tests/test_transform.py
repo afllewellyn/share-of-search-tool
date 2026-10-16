@@ -434,7 +434,7 @@ def test_each_window_starts_at_exactly_its_own_length(window):
     That difference is what makes a shorter smoothing window cover more of the
     chart, and it reads as a bug until you know it. The alternative — averaging
     four months and calling it a twelve-month average — is the actual bug, so
-    this pins the behaviour rather than softening it.
+    this pins the behavior rather than softening it.
     """
     config = _config(
         Brand(name="Acme", keywords=["acme"], is_own_brand=True),
