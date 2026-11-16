@@ -4,7 +4,7 @@ Are more people searching for you, or for your competitors?
 
 Share of Search measures interest in your brand relative to the brands you compete with: of
 everyone searching by name, how many are searching for you? Tracked monthly, it tends to
-move before market share does. Try it here: (https://github.com/afllewellyn/share-of-search-tool)
+move before market share does. Try it here: https://share-of-search-tool-pi.vercel.app/
 
 ## The problem
 
